@@ -1,7 +1,9 @@
 #include "engine.h"
+#include "rc.h"
 
 typedef struct{
-	/* */
+	/* Raycasting*/
+	Player player;
 
 	Map map;
 	/* INPUT */
@@ -57,7 +59,7 @@ void engine_init(int w, int h){
 
 	if(SDL_Init(SDL_INIT_EVERYTHING) < 0) DIE(SDL_GetError());
 
-	window = SDL_CreateWindow("Shooter", 0, 0, w, h, 0);
+	window = SDL_CreateWindow("rc", 0, 0, w, h, 0);
 	if(!window) DIE(SDL_GetError());
 
 	renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
@@ -77,6 +79,11 @@ void engine_init(int w, int h){
 
 	memset(engine->viewports, 0, sizeof(SDL_Rect) * VIEWPORTS_NUM);
 
+	SDL_Rect viewport = {0, 0, 300, 300};
+	map_init(&engine->map, temp_map, 8, 8, viewport);
+
+	rc_init(&engine->player);
+
 	initialized = true;
 }
 
@@ -85,8 +92,11 @@ void engine_quit(){
 	SDL_DestroyRenderer(engine->renderer);
 	SDL_DestroyWindow(engine->window);
 	SDL_Quit();
-	free(engine);
 
+	rc_quit();
+	map_quit(&engine->map);
+
+	free(engine);
 }
 
 inline static void engine_keydown(const SDL_KeyboardEvent * e){
@@ -176,9 +186,6 @@ void engine_cap_framerate(){
 }
 
 void engine_run(){
-	SDL_Rect vp = {0, 0, 300, 300};
-	map_init(&engine->map, temp_map, 8, 8, vp);
-
 	engine->old_time = SDL_GetTicks();
 
 	while(engine->running){
@@ -186,8 +193,15 @@ void engine_run(){
 
 		engine_handle_input();
 
+		/* Render */
 		map_draw(&engine->map, engine->renderer);
+		player_draw(&engine->player, &engine->map, engine->renderer);
 
+
+		rc_cast(&engine->player, &engine->map);
+		rc_draw_rays(engine->renderer, &engine->player, &engine->map);
+
+		/* End Render */
 		engine_present();
 
 		engine_cap_framerate();

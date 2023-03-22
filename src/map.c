@@ -1,6 +1,4 @@
 #include "map.h"
-#include "engine.h"
-#include <stdio.h>
 
 #define BLACK 0x00000000
 #define RED 0xff0000ff
@@ -20,6 +18,7 @@ void map_init(Map * map, int * values, size_t w, size_t h, SDL_Rect viewport){
 	map->h = h;
 
 	map->viewport = viewport;
+	map->cell_size = CELL_SIZE;
 
 	memcpy(map->values, values, sizeof(int) * (w * h));
 }
@@ -34,7 +33,6 @@ void map_draw(const Map * map, SDL_Renderer * renderer){
 	window_h = map->viewport.h;
 
 	SDL_RenderSetViewport(renderer, &map->viewport);
-
 	// map's cell size in screen space
 	int cell_w_screen =  window_w / map->w;
 	int cell_h_screen =  window_h / map->h;
@@ -75,4 +73,9 @@ void map_draw(const Map * map, SDL_Renderer * renderer){
 						   window_w - 1,
 						   screen_y);
 	}
+}
+
+void map_quit(Map * map){
+	assert(map != NULL);
+	free(map->values);
 }
