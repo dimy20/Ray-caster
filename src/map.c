@@ -1,4 +1,5 @@
 #include "map.h"
+#include "engine.h"
 #include <stdio.h>
 
 #define BLACK 0x00000000
@@ -8,64 +9,70 @@
 
 uint32_t colors[4] = {BLACK, RED, GREEN, BLUE};
 
-int map[MAP_W][MAP_H] = {
-	{1, 1, 1, 1, 1, 1, 1, 1},
-	{1, 0, 0, 0, 0, 0, 0, 1},
-	{1, 0, 0, 2, 0, 2, 0, 1},
-	{1, 0, 0, 2, 2, 2, 0, 1},
-	{1, 0, 0, 0, 0, 0, 0, 1},
-	{1, 0, 0, 0, 3, 0, 0, 1},
-	{1, 0, 0, 0, 0, 0, 0, 1},
-	{1, 1, 1, 1, 1, 1, 1, 1},
-};
+void map_init(Map * map, int * values, size_t w, size_t h, SDL_Rect viewport){
+	assert(map != NULL);
+	assert(values != NULL);
 
-void map_init(){
-	SDL_Rect vp = {0, 0, 300, 300};
-	engine->viewports[MAP_VIEWPORT] = vp;
+	map->values = malloc(sizeof(int) * (w * h));
+	assert(map->values != NULL);
+
+	map->w = w;
+	map->h = h;
+
+	map->viewport = viewport;
+
+	memcpy(map->values, values, sizeof(int) * (w * h));
 }
 
-void map_draw(){
-	int window_w, window_h;
-	window_w = engine->viewports[MAP_VIEWPORT].w;
-	window_h = engine->viewports[MAP_VIEWPORT].h;
+// void map_draw(const Map * map, Platform * platform)
+void map_draw(const Map * map, SDL_Renderer * renderer){
+	assert(map != NULL);
+	assert(renderer != NULL);
 
-	SDL_RenderSetViewport(engine->renderer,
-						  &engine->viewports[MAP_VIEWPORT]);
+	int window_w, window_h;
+	window_w = map->viewport.w;
+	window_h = map->viewport.h;
+
+	SDL_RenderSetViewport(renderer, &map->viewport);
 
 	// map's cell size in screen space
-	int cell_w_screen =  window_w / MAP_W;
-	int cell_h_screen =  window_h / MAP_H;
+	int cell_w_screen =  window_w / map->w;
+	int cell_h_screen =  window_h / map->h;
 
-	for(int map_y = 0; map_y < MAP_H; ++map_y){
-		for(int map_x = 0; map_x < MAP_W; ++map_x){
-			int screen_x = map_x * cell_w_screen;
-			int screen_y = map_y * cell_h_screen;
+	for(int y = 0; y < map->h; ++y){
+		for(int x = 0; x < map->w; ++x){
+			int screen_x = x * cell_w_screen;
+			int screen_y = y * cell_h_screen;
 
 			SDL_Rect rect = {screen_x,
 							 screen_y,
 							 cell_w_screen,
 							 cell_h_screen};
 
-			uint32_t color = colors[map[map_x][map_y]];
+			uint32_t color = colors[map->values[y * map->w + x]];
 
 			engine_set_color(color);
-			SDL_RenderFillRect(engine->renderer, &rect);
+			SDL_RenderFillRect(renderer, &rect);
 		}
 	}
 
 	engine_set_color(0xffffffff);
 	// draw the grid
-	for(size_t x = 0; x < MAP_W; ++x){
+	for(size_t x = 0; x < map->w; ++x){
 		int screen_x = (x * cell_w_screen);
-		SDL_RenderDrawLine(engine->renderer,
+		SDL_RenderDrawLine(renderer,
 						   screen_x,
 						   0,
 						   screen_x,
 						   window_h - 1);
 	}
 
-	for(size_t y = 0; y < MAP_H; ++y){
+	for(size_t y = 0; y < map->h; ++y){
 		int screen_y = y * cell_h_screen;
-		SDL_RenderDrawLine(engine->renderer, 0, screen_y, window_w - 1, screen_y);
+		SDL_RenderDrawLine(renderer, 
+					       0,
+						   screen_y,
+						   window_w - 1,
+						   screen_y);
 	}
 }

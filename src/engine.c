@@ -1,8 +1,46 @@
 #include "engine.h"
-#include "map.h"
+
+typedef struct{
+	/* */
+
+	Map map;
+	/* INPUT */
+	uint8_t keyboard[KEYBOARD_MAX_KEYS];
+
+	/* SDL STUFF 
+	 * TODO: make this should live on a lower layer, a platform layer??*/
+	SDL_Renderer * renderer;
+
+	/* STATE */
+	bool running;
+
+	/* Viewports */
+	SDL_Rect viewports[VIEWPORTS_NUM];
+
+	/*Window information*/
+	SDL_Window * window;
+	int w, h;
+
+	/* TIME */
+	uint64_t delta_time;
+	uint32_t old_time, now_time;
+}Engine;
 
 static bool initialized = false;
 Engine * engine = NULL;
+
+int temp_map[8 * 8] = {
+	1, 1, 1, 1, 1, 1, 1, 1,
+	1, 0, 0, 0, 0, 0, 0, 1,
+	1, 0, 0, 2, 0, 2, 0, 1,
+	1, 0, 0, 2, 2, 2, 0, 1,
+	1, 0, 0, 0, 0, 0, 0, 1,
+	1, 0, 0, 0, 3, 0, 0, 1,
+	1, 0, 0, 0, 0, 0, 0, 1,
+	1, 1, 1, 1, 1, 1, 1, 1,
+};
+
+
 
 int test_collision(const SDL_Rect a, const SDL_Rect b){
 	return (a.x < b.x + b.w &&
@@ -138,7 +176,9 @@ void engine_cap_framerate(){
 }
 
 void engine_run(){
-	map_init();
+	SDL_Rect vp = {0, 0, 300, 300};
+	map_init(&engine->map, temp_map, 8, 8, vp);
+
 	engine->old_time = SDL_GetTicks();
 
 	while(engine->running){
@@ -146,7 +186,7 @@ void engine_run(){
 
 		engine_handle_input();
 
-		map_draw();
+		map_draw(&engine->map, engine->renderer);
 
 		engine_present();
 

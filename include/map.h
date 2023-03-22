@@ -1,10 +1,13 @@
 #pragma once
 
-#include "engine.h"
 #include <SDL2/SDL.h>
 
-#define MAP_W 8
-#define MAP_H 8
+typedef struct{
+	int * values;
+	size_t w;
+	size_t h;
+	SDL_Rect viewport;
+}Map;
 
-void map_init();
-void map_draw();
+void map_init(Map * map, int * values, size_t w, size_t h, SDL_Rect viewport);
+void map_draw(const Map * map, SDL_Renderer * renderer);

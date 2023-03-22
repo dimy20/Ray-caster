@@ -6,6 +6,8 @@
 #include <SDL2/SDL.h>
 #include <assert.h>
 
+#include "map.h"
+
 #define MAX(a,b) (a) > (b) ? (a) : (b)
 #define MIN(a,b) (a) > (b) ? (b) : (a)
 
@@ -26,24 +28,6 @@ typedef enum{
 	
 	VIEWPORTS_NUM
 }Viewport;
-
-typedef struct{
-	uint64_t delta_time;
-	uint32_t old_time, now_time;
-
-	SDL_Window * window;
-	SDL_Renderer * renderer;
-	uint8_t keyboard[KEYBOARD_MAX_KEYS];
-	bool running;
-	int w, h;
-
-	SDL_Rect viewports[VIEWPORTS_NUM];
-}Engine;
-
-extern Engine * engine;
-
-typedef void(*Game_update_cb)(void);
-typedef void(*Game_draw_cb)(void);
 
 void engine_add_viewport(char * name, const SDL_Rect rect);
 
