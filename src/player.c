@@ -39,11 +39,13 @@ void player_init(Player * player, size_t projection_plane_w){
 	player->position.x = 96;
 	player->position.y = 224;
 
-	player->speed = 2.0f;
-	player->rotation_speed = 2.5f;
+	player->speed = 30.0f;
+	player->rotation_speed = 40.0f;
 }
 
 void player_update(Player * player){
+	double delta_time = engine_deltatime();
+
 	bool pressed_w = engine_test_inputkey(SDL_SCANCODE_W);
 	bool pressed_s = engine_test_inputkey(SDL_SCANCODE_S);
 
@@ -56,6 +58,8 @@ void player_update(Player * player){
 		dir.y = -sin(TO_RAD(player->viewing_angle));
 
 		double _speed = pressed_w ? player->speed : - player->speed;
+		_speed *= delta_time;
+
 		player->position.x += dir.x * _speed;
 		player->position.y += dir.y * _speed;
 	}
@@ -65,7 +69,8 @@ void player_update(Player * player){
 		dir.x = cos(TO_RAD(player->viewing_angle));
 		dir.y = sin(TO_RAD(player->viewing_angle));
 
-		double rotation_speed = player->rotation_speed;
+		double rotation_speed = player->rotation_speed * delta_time;
+
 		double alpha_cos = cos(TO_RAD(pressed_d ? -rotation_speed : rotation_speed));
 		double alpha_sin = sin(TO_RAD(pressed_d ? -rotation_speed : rotation_speed));
 

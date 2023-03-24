@@ -24,7 +24,7 @@ typedef struct{
 	int w, h;
 
 	/* TIME */
-	uint64_t delta_time;
+	double delta_time;
 	uint32_t old_time, now_time;
 }Engine;
 
@@ -51,6 +51,7 @@ int test_collision(const SDL_Rect a, const SDL_Rect b){
 			a.y + a.h > b.y);
 };
 
+
 void engine_init(int w, int h){
 	assert(!initialized);
 
@@ -70,7 +71,7 @@ void engine_init(int w, int h){
 
 	engine->window = window;
 	engine->renderer = renderer;
-	engine->old_time = engine->now_time = engine->delta_time = 0;
+	engine->old_time = engine->now_time = 0;
 	memset(engine->keyboard, 0, KEYBOARD_MAX_KEYS);
 
 	engine->running = true;
@@ -172,9 +173,9 @@ void engine_cap_framerate(){
 	remainder -= (int)remainder;
 
 	engine->now_time = SDL_GetTicks();
-	engine->delta_time = engine->now_time - engine->old_time;
+	uint64_t delta = engine->now_time - engine->old_time;
 
-	wait -= engine->delta_time;
+	wait -= delta;
 
 	wait = MAX(wait, 1UL);
 
@@ -191,6 +192,8 @@ static void engine_update(){
 void engine_run(){
 	engine->old_time = SDL_GetTicks();
 
+	uint32_t old = SDL_GetTicks();
+
 	while(engine->running){
 		engine_clear();
 
@@ -204,6 +207,10 @@ void engine_run(){
 
 		rc_cast(engine->renderer, &engine->player, &engine->map);
 		rc_draw_rays(engine->renderer, &engine->player, &engine->map);
+
+		uint32_t now = SDL_GetTicks();
+		engine->delta_time = (now - old) / 1000.0f;
+		old = now;
 
 		/* End Render */
 		engine_present();
@@ -236,4 +243,8 @@ void engine_query_window(int * w, int * h){
 	assert(engine != NULL);
 	*w = engine->w;
 	*h = engine->h;
+}
+
+double engine_deltatime(){
+	return engine->delta_time;
 }
