@@ -16,7 +16,7 @@ typedef struct{
 	int height;
 	double viewing_angle;
 	double fov;
-	vec2i position;
+	vec2f position;
 
 	float speed;
 	float rotation_speed;

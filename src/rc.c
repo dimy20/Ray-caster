@@ -6,7 +6,7 @@
 static Rc_context * rc_ctx;
 static bool initted = false;
 
-void world_2_screen(const vec2i * world_pos, vec2i * screen, const Map * map){
+void world_2_screen(const vec2f * world_pos, vec2i * screen, const Map * map){
 	int map_w = map->cell_size * map->w;
 	int map_h = map->cell_size * map->h;
 
@@ -133,7 +133,12 @@ void rc_draw_rays(SDL_Renderer * renderer, const Player * player, const Map * ma
 			vec2i player_screen, hit_screen;
 
 			world_2_screen(&player->position, &player_screen, map);
-			world_2_screen(h_hit, &hit_screen, map);
+			vec2f h_hitf;
+
+			h_hitf.x = h_hit->x;
+			h_hitf.y = h_hit->y;
+
+			world_2_screen(&h_hitf, &hit_screen, map);
 
 			SDL_RenderDrawLine(renderer,
 							   player_screen.x,

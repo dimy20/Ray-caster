@@ -1,6 +1,6 @@
 #include "player.h"
 
-static void world_2_screen(const vec2i * world_pos, vec2i * screen, const Map * map){
+static void world_2_screen(const vec2f * world_pos, vec2i * screen, const Map * map){
 	int map_w = map->cell_size * map->w;
 	int map_h = map->cell_size * map->h;
 
@@ -40,24 +40,25 @@ void player_init(Player * player, size_t projection_plane_w){
 	player->position.y = 224;
 
 	player->speed = 2.0f;
-	player->rotation_speed = 0.5f;
+	player->rotation_speed = 2.5f;
 }
 
 void player_update(Player * player){
-	vec2f dir;
-	if(engine_test_inputkey(SDL_SCANCODE_W)){
-		dir.x = cos(TO_RAD(player->viewing_angle));
-		dir.y = sin(TO_RAD(player->viewing_angle));
-
-		if(player->viewing_angle > 0.0f && player->viewing_angle < 180.0f){
-			player->position.y += dir.y * -player->speed;
-		}
-
-		player->position.x += dir.x * player->speed;
-	};
+	bool pressed_w = engine_test_inputkey(SDL_SCANCODE_W);
+	bool pressed_s = engine_test_inputkey(SDL_SCANCODE_S);
 
 	bool pressed_d = engine_test_inputkey(SDL_SCANCODE_D);
 	bool pressed_a = engine_test_inputkey(SDL_SCANCODE_A);
+
+	if(pressed_s || pressed_w){
+		vec2f dir;
+		dir.x = cos(TO_RAD(player->viewing_angle));
+		dir.y = -sin(TO_RAD(player->viewing_angle));
+
+		double _speed = pressed_w ? player->speed : - player->speed;
+		player->position.x += dir.x * _speed;
+		player->position.y += dir.y * _speed;
+	}
 
 	if(pressed_d || pressed_a){
 		vec2f dir;
