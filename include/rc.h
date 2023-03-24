@@ -18,7 +18,8 @@
 typedef struct{
 	size_t projection_plane_w;
 	size_t projection_plane_h;
-	vec2i  * h_hits;
+	vec2i * h_hits;
+	vec2i * v_hits;
 }Rc_context;
 
 void rc_init(Player * player);

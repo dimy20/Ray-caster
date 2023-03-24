@@ -29,8 +29,11 @@ void rc_init(Player * player){
 	rc_ctx->projection_plane_h = PROJECTION_PLANE_H;
 
 	rc_ctx->h_hits = malloc(sizeof(vec2i) * rc_ctx->projection_plane_w);
+	rc_ctx->v_hits = malloc(sizeof(vec2i) * rc_ctx->projection_plane_w);
+
 	assert(rc_ctx->h_hits != NULL);
 	memset(rc_ctx->h_hits, 0, sizeof(vec2i) * rc_ctx->projection_plane_w);
+	memset(rc_ctx->v_hits, 0, sizeof(vec2i) * rc_ctx->projection_plane_w);
 
 	initted = true;
 
@@ -106,8 +109,62 @@ vec2i cast_horizontal_intercept(const float ray_angle,
 	return h_hit;
 }
 
+static vec2i cast_vertical_intercept(double ray_angle, const Player * player, const Map * map){
+	int step_x;
+	int delta_step_y;
+	vec2i v_hit;
+
+	// U, R
+	int map_x = (int)(player->position.x / map->cell_size);
+	if(ray_angle < 90.0 || ray_angle > 270.0){
+		v_hit.x = (map_x * map->cell_size) + map->cell_size;
+		//NOTE: floating point convesion, careful?
+		int dx = v_hit.x - player->position.x;
+		int dy = dx * tan(TO_RAD(ray_angle));
+		v_hit.y = player->position.y - dy;
+
+		step_x = map->cell_size;
+		delta_step_y = -(step_x * tan(TO_RAD(ray_angle)));
+	}else{
+		v_hit.x = (map_x * map->cell_size) -1;
+		int dx = player->position.x - v_hit.x;
+
+		int dy = -(dx * tan(TO_RAD(ray_angle)));
+		v_hit.y = player->position.y - dy;
+
+		step_x = -map->cell_size;
+		delta_step_y = -(step_x * tan(TO_RAD(ray_angle)));
+	}
+
+	bool hit = false;
+	while(!hit){
+		int x = v_hit.x / map->cell_size;
+		int y = v_hit.y / map->cell_size;
+
+		if(x > map->w || x < 0 || y > map->h || y < 0){
+			break;
+		}
+
+		if(map->values[y * map->w + x] > 0){
+			hit = true;
+		}else{
+			v_hit.x += step_x;
+			v_hit.y += delta_step_y;
+		}
+	}
+
+	if(!hit){
+		v_hit.x = INT_MAX;
+		v_hit.y = INT_MAX;
+	}
+
+	return v_hit;
+
+}
+
 void rc_cast(SDL_Renderer * renderer, const Player * player, const Map * map){ 
 	memset(rc_ctx->h_hits, 0, sizeof(vec2i) * rc_ctx->projection_plane_w);
+	memset(rc_ctx->v_hits, 0, sizeof(vec2i) * rc_ctx->projection_plane_w);
 	float angle_step = player->fov / (float)PROJECTION_PLANE_W;
 
 	// move the starting ray_angle direction to the leftmost part of the
@@ -118,7 +175,10 @@ void rc_cast(SDL_Renderer * renderer, const Player * player, const Map * map){
 		if(ray_angle < 0) ray_angle += 360.0f;
 
 		vec2i h = cast_horizontal_intercept(ray_angle, player, map);
+		vec2i v = cast_vertical_intercept(ray_angle, player, map);
+
 		rc_ctx->h_hits[x] = h;
+		rc_ctx->v_hits[x] = v;
 
 		ray_angle -= angle_step;
 		if(ray_angle > 360.0f) ray_angle -= 360.0f;
