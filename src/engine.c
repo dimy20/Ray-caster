@@ -185,6 +185,9 @@ void engine_cap_framerate(){
 	engine->old_time = SDL_GetTicks();
 }
 
+static void engine_update(){
+	player_update(&engine->player);
+}
 void engine_run(){
 	engine->old_time = SDL_GetTicks();
 
@@ -192,13 +195,14 @@ void engine_run(){
 		engine_clear();
 
 		engine_handle_input();
+		/* update */
+		engine_update();
 
 		/* Render */
 		map_draw(&engine->map, engine->renderer);
 		player_draw(&engine->player, &engine->map, engine->renderer);
 
-
-		rc_cast(&engine->player, &engine->map);
+		rc_cast(engine->renderer, &engine->player, &engine->map);
 		rc_draw_rays(engine->renderer, &engine->player, &engine->map);
 
 		/* End Render */

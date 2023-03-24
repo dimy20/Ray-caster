@@ -48,5 +48,3 @@ void engine_draw_rect(SDL_Rect * rect);
 
 int test_collision(const SDL_Rect a, const SDL_Rect b);
 void engine_query_window(int * w, int * h);
-
-void engine_add_viewport(char * name, const SDL_Rect rect);

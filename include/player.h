@@ -17,6 +17,9 @@ typedef struct{
 	double viewing_angle;
 	double fov;
 	vec2i position;
+
+	float speed;
+	float rotation_speed;
 }Player;
 
 void player_draw(const Player * player,
@@ -25,5 +28,4 @@ void player_draw(const Player * player,
 
 void player_init(Player * player, size_t projection_plane_w);
 
-//void player_update(uint8_t * keyboard, )
-
+void player_update(Player * player);

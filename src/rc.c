@@ -32,8 +32,9 @@ void rc_init(Player * player){
 	assert(rc_ctx->h_hits != NULL);
 	memset(rc_ctx->h_hits, 0, sizeof(vec2i) * rc_ctx->projection_plane_w);
 
-	player_init(player, rc_ctx->projection_plane_w);
 	initted = true;
+
+	player_init(player, rc_ctx->projection_plane_w);
 }
 
 void rc_quit(){
@@ -42,10 +43,9 @@ void rc_quit(){
 	free(rc_ctx);
 }
 
-static vec2i cast_horizontal_intercept(const float ray_angle,
+vec2i cast_horizontal_intercept(const float ray_angle,
 									  const Player * player,
 									  const Map * map){
-	const int cell_size = map->cell_size;
 	vec2i h_hit;
 
 	int step_y;
@@ -56,9 +56,7 @@ static vec2i cast_horizontal_intercept(const float ray_angle,
 	 * x and y positions, not the player's.*/
 	int map_y = (int)(player->position.y / map->cell_size);
 
-
-	// calculate intial horizontal position
-	if(ray_angle >= 0 && ray_angle <= 180){ // ray direction is up
+	if(ray_angle > 0.0 && ray_angle < 180.0){
 		h_hit.y = map_y * (map->cell_size) - 1;
 
 		int dy = player->position.y - h_hit.y;
@@ -68,20 +66,20 @@ static vec2i cast_horizontal_intercept(const float ray_angle,
 
 		step_y = -map->cell_size;
 	}else{
-		h_hit.y = (map_y * (map->cell_size)) + cell_size;
+		h_hit.y = (map_y * map->cell_size) + map->cell_size;
 
 		int dy = h_hit.y - player->position.y;
-		int dx = dy / tan(TO_RAD(ray_angle));
+		int dx = dy / -tan(TO_RAD(ray_angle));
 
 		h_hit.x = player->position.x + dx;
-
 		step_y = map->cell_size;
-
 	}
 
-
-	delta_step_x = map->cell_size / tan(TO_RAD(ray_angle));
-
+	if(ray_angle > 180){
+		delta_step_x = map->cell_size / -tan(TO_RAD(ray_angle));
+	}else{
+		delta_step_x = map->cell_size / tan(TO_RAD(ray_angle));
+	}
 
 	bool hit = false;
 	if(ray_angle != 0 && ray_angle != 180){
@@ -108,35 +106,24 @@ static vec2i cast_horizontal_intercept(const float ray_angle,
 	return h_hit;
 }
 
-void rc_cast(const Player * player, const Map * map){ 
+void rc_cast(SDL_Renderer * renderer, const Player * player, const Map * map){ 
+	memset(rc_ctx->h_hits, 0, sizeof(vec2i) * rc_ctx->projection_plane_w);
+	float angle_step = player->fov / (float)PROJECTION_PLANE_W;
 
-	#ifdef EUCLIDEAN_RAYCASTER
-		memset(rc_ctx->h_hits, 0, sizeof(vec2i) * rc_ctx->projection_plane_w);
-		float angle_step = player->fov / (float)PROJECTION_PLANE_W;
+	// move the starting ray_angle direction to the leftmost part of the
+	float ray_angle = player->viewing_angle + (player->fov / 2);
 
-		// move the starting ray_angle direction to the leftmost part of the
-		float ray_angle = player->viewing_angle + (player->fov / 2);
+	/*Trace a ray for every colum*/
+	for(size_t x = 0; x < rc_ctx->projection_plane_w; x++){
+		if(ray_angle < 0) ray_angle += 360.0f;
 
-		/*Trace a ray for every colum*/
-		for(size_t x = 0; x < rc_ctx->projection_plane_w; x++){
-			if(ray_angle < 0) ray_angle += 360.0f;
+		vec2i h = cast_horizontal_intercept(ray_angle, player, map);
+		rc_ctx->h_hits[x] = h;
 
-			vec2i h = cast_horizontal_intercept(ray_angle, player, map);
-			rc_ctx->h_hits[x] = h;
-
-			ray_angle -= angle_step;
-			// verticals intercepts
-
-			if(ray_angle > 360.0f) ray_angle -= 360.0f;
-		}
-
-	#else
-		UNIMPLEMENTED;
-
-	#endif
-
+		ray_angle -= angle_step;
+		if(ray_angle > 360.0f) ray_angle -= 360.0f;
+	}
 }
-
 
 void rc_draw_rays(SDL_Renderer * renderer, const Player * player, const Map * map){
 	engine_set_color(0xffffffff);

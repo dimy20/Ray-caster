@@ -5,7 +5,7 @@
 #define GREEN 0x00ff00ff
 #define BLUE 0x0000ffff
 
-uint32_t colors[4] = {BLACK, RED, GREEN, BLUE};
+static uint32_t colors[4] = {BLACK, RED, GREEN, BLUE};
 
 void map_init(Map * map, int * values, size_t w, size_t h, SDL_Rect viewport){
 	assert(map != NULL);

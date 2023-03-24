@@ -38,4 +38,42 @@ void player_init(Player * player, size_t projection_plane_w){
 
 	player->position.x = 96;
 	player->position.y = 224;
+
+	player->speed = 2.0f;
+	player->rotation_speed = 0.5f;
+}
+
+void player_update(Player * player){
+	vec2f dir;
+	if(engine_test_inputkey(SDL_SCANCODE_W)){
+		dir.x = cos(TO_RAD(player->viewing_angle));
+		dir.y = sin(TO_RAD(player->viewing_angle));
+
+		if(player->viewing_angle > 0.0f && player->viewing_angle < 180.0f){
+			player->position.y += dir.y * -player->speed;
+		}
+
+		player->position.x += dir.x * player->speed;
+	};
+
+	bool pressed_d = engine_test_inputkey(SDL_SCANCODE_D);
+	bool pressed_a = engine_test_inputkey(SDL_SCANCODE_A);
+
+	if(pressed_d || pressed_a){
+		vec2f dir;
+		dir.x = cos(TO_RAD(player->viewing_angle));
+		dir.y = sin(TO_RAD(player->viewing_angle));
+
+		double rotation_speed = player->rotation_speed;
+		double alpha_cos = cos(TO_RAD(pressed_d ? -rotation_speed : rotation_speed));
+		double alpha_sin = sin(TO_RAD(pressed_d ? -rotation_speed : rotation_speed));
+
+		vec2f new_dir;
+
+		new_dir.x = dir.x * alpha_cos - dir.y * alpha_sin;
+		new_dir.y = dir.x * alpha_sin + dir.y * alpha_cos;
+
+		double new_angle = (atan2(new_dir.y, new_dir.x) * 180.0) / M_PI;
+		player->viewing_angle = new_angle;
+	}
 }

@@ -22,6 +22,6 @@ typedef struct{
 }Rc_context;
 
 void rc_init(Player * player);
-void rc_cast(const Player * player, const Map * map);
+void rc_cast(SDL_Renderer * renderer, const Player * player, const Map * map);
 void rc_draw_rays(SDL_Renderer * renderer, const Player * player, const Map * map);
 void rc_quit();
