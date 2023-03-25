@@ -5,7 +5,7 @@ float lerp(float origin, float target, float t){
 }
 
 uint32_t pack_color(uint8_t r, uint8_t g, uint8_t b, uint8_t a){
-	return r << 24 | g << 16 | b << 8 | a;
+	return (uint32_t)(r << 24 | g << 16 | b << 8 | a);
 }
 
 void unpack_color(const uint32_t color, 
@@ -14,10 +14,10 @@ void unpack_color(const uint32_t color,
 								uint8_t * b, 
 								uint8_t * a)
 {
-	*r = (color >> 24) & 0xff;
-	*g = (color >> 16) & 0xff;
-	*b = (color >> 8) & 0xff;
-	*a = color & 0xff;
+	*r = (uint8_t)((color >> 24) & 0xff);
+	*g = (uint8_t)((color >> 16) & 0xff);
+	*b = (uint8_t)((color >> 8) & 0xff);
+	*a = (uint8_t)(color & 0xff);
 }
 
 void wiz_clear(Canvas * canvas, uint32_t color){
@@ -34,8 +34,8 @@ void basic_gradient(Canvas * canvas){
 
 	for(size_t y = 0; y < h; y++){
 		for(size_t x = 0; x < w; x++){
-			uint8_t r = ((float)x / (float)w) * 0xff;
-			uint8_t g = ((float)y / (float)h) * 0xff;
+			uint8_t r = (uint8_t)(((float)x / (float)w) * 0xff);
+			uint8_t g = (uint8_t)(((float)y / (float)h) * 0xff);
 			uint32_t color = pack_color(r, g, 0, 0xff);
 			canvas->pixels[y * w + x] = color;
 		}

@@ -83,7 +83,8 @@ void engine_init(int w, int h){
 	SDL_Rect viewport = {0, 0, 300, 300};
 	map_init(&engine->map, temp_map, 8, 8, viewport);
 
-	rc_init(&engine->player);
+	SDL_Rect rc_vp = {300 + 1, 0, 320, 200};
+	rc_init(engine->renderer, &engine->player, rc_vp);
 
 	initialized = true;
 }

@@ -1,14 +1,14 @@
 #include "player.h"
 
 static void world_2_screen(const vec2f * world_pos, vec2i * screen, const Map * map){
-	int map_w = map->cell_size * map->w;
-	int map_h = map->cell_size * map->h;
+	size_t map_w = map->cell_size * map->w;
+	size_t map_h = map->cell_size * map->h;
 
-	float x_scale = (map->viewport.w) / (float)(map_w);
-	float y_scale = (map->viewport.h) / (float)(map_h);
+	float x_scale = (float)(map->viewport.w) / (float)(map_w);
+	float y_scale = (float)(map->viewport.h) / (float)(map_h);
 
-	screen->x = world_pos->x * x_scale;
-	screen->y = world_pos->y * y_scale;
+	screen->x = (int)(world_pos->x * x_scale);
+	screen->y = (int)(world_pos->y * y_scale);
 }
 
 void player_draw(const Player * player,
@@ -28,10 +28,10 @@ void player_draw(const Player * player,
 
 void player_init(Player * player, size_t projection_plane_w){
 	player->fov = FOV;
-	float half_fov = TO_RAD(player->fov * 0.5f);
-	int half_plane_w = projection_plane_w / 2;
+	double half_fov = TO_RAD(player->fov * 0.5);
+	size_t half_plane_w = projection_plane_w / 2;
 
-	player->dist_from_proj_plane = half_plane_w / tan(half_fov);
+	player->dist_from_proj_plane = (double)half_plane_w / tan(half_fov);
 
 	player->height = PLAYER_HEIGHT;
 	player->viewing_angle = PLAYER_VIEWING_ANGLE;

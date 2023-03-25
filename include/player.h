@@ -12,7 +12,7 @@
 #define PLAYER_VIEWING_ANGLE 45
 
 typedef struct{
-	int dist_from_proj_plane;
+	double dist_from_proj_plane;
 	int height;
 	double viewing_angle;
 	double fov;

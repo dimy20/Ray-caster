@@ -4,8 +4,8 @@
 #define TO_RAD(d) ((d) * M_PI) / 180.0
 
 typedef struct{
-	float x;
-	float y;
+	double x;
+	double y;
 }vec2f;
 
 typedef struct{
