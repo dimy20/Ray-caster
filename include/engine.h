@@ -8,9 +8,6 @@
 
 #include "map.h"
 
-#define MAX(a,b) (a) > (b) ? (a) : (b)
-#define MIN(a,b) (a) > (b) ? (b) : (a)
-
 #define UNIMPLEMENTED do{ \
 	fprintf(stderr, "UNIMPLEMENTED %s:%d\n", __FILE__, __LINE__); \
 	exit(1); \
@@ -24,7 +21,7 @@
 #define KEYBOARD_MAX_KEYS 350
 typedef enum{
 	MAP_VIEWPORT,
-	GAME_VIEWPORT,
+	SCENE_VIEWPORT,
 	
 	VIEWPORTS_NUM
 }Viewport;

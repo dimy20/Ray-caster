@@ -1,11 +1,14 @@
 #include "engine.h"
 #include "rc.h"
 
+#define PROJ_PLANE_W 320
+#define PROJ_PLANE_H 200
+
 typedef struct{
 	/* Raycasting*/
 	Player player;
-
 	Map map;
+	SDL_Texture * fbuffer_texture;
 	/* INPUT */
 	uint8_t keyboard[KEYBOARD_MAX_KEYS];
 
@@ -42,8 +45,6 @@ int temp_map[8 * 8] = {
 	1, 1, 1, 1, 1, 1, 1, 1,
 };
 
-
-
 int test_collision(const SDL_Rect a, const SDL_Rect b){
 	return (a.x < b.x + b.w &&
 			a.x + a.w > b.x &&
@@ -51,6 +52,12 @@ int test_collision(const SDL_Rect a, const SDL_Rect b){
 			a.y + a.h > b.y);
 };
 
+static void engine_init_viewport(SDL_Rect * vp, int x, int y, int w, int h){
+	vp->x = x;
+	vp->y = y;
+	vp->w = w;
+	vp->h = h;
+}
 
 void engine_init(int w, int h){
 	assert(!initialized);
@@ -78,13 +85,29 @@ void engine_init(int w, int h){
 	engine->w = w;
 	engine->h = h;
 
+	/* Viewports */
 	memset(engine->viewports, 0, sizeof(SDL_Rect) * VIEWPORTS_NUM);
+	engine_init_viewport(&engine->viewports[MAP_VIEWPORT], 0, 0, 300, 300);
+	engine_init_viewport(&engine->viewports[SCENE_VIEWPORT], 300 + 1, 0,
+			             PROJ_PLANE_W, PROJ_PLANE_H);
+
+	/*This texture will be updated with the frame buffer that is drawn by
+	 * the rc core algorithm each frame*/
+	SDL_Texture * texture = SDL_CreateTexture(engine->renderer,
+											 SDL_PIXELFORMAT_RGBA8888,
+											 SDL_TEXTUREACCESS_STREAMING,
+											 PROJ_PLANE_W,
+											 PROJ_PLANE_H);
+	if(texture == NULL) DIE(SDL_GetError());
+	engine->fbuffer_texture = texture;
 
 	SDL_Rect viewport = {0, 0, 300, 300};
 	map_init(&engine->map, temp_map, 8, 8, viewport);
 
-	SDL_Rect rc_vp = {300 + 1, 0, 320, 200};
-	rc_init(engine->renderer, &engine->player, rc_vp);
+	rc_init(engine->renderer,
+			&engine->player,
+			PROJ_PLANE_W,
+			PROJ_PLANE_H);
 
 	initialized = true;
 }
@@ -93,12 +116,15 @@ void engine_quit(){
 	assert(engine != NULL);
 	SDL_DestroyRenderer(engine->renderer);
 	SDL_DestroyWindow(engine->window);
-	SDL_Quit();
+
 
 	rc_quit();
+
 	map_quit(&engine->map);
 
 	free(engine);
+
+	SDL_Quit();
 }
 
 inline static void engine_keydown(const SDL_KeyboardEvent * e){
@@ -190,6 +216,28 @@ void engine_cap_framerate(){
 static void engine_update(){
 	player_update(&engine->player);
 }
+
+static void engine_draw(){
+	map_draw(&engine->map, engine->renderer);
+	player_draw(&engine->player, &engine->map, engine->renderer);
+
+	uint32_t * fbuffer = rc_cast(engine->renderer, &engine->player, &engine->map);
+
+	size_t pitch = sizeof(uint32_t) * PROJ_PLANE_W;
+
+	if(SDL_UpdateTexture(engine->fbuffer_texture, NULL, fbuffer, pitch) < 0)
+		DIE(SDL_GetError());
+
+	if(SDL_RenderSetViewport(engine->renderer, &engine->viewports[SCENE_VIEWPORT]) < 0)
+		DIE(SDL_GetError());
+
+	if(SDL_RenderCopy(engine->renderer, engine->fbuffer_texture, NULL, NULL) < 0){
+		DIE(SDL_GetError());
+	}
+
+	rc_draw_rays(engine->renderer, &engine->player, &engine->map);
+}
+
 void engine_run(){
 	engine->old_time = SDL_GetTicks();
 
@@ -203,11 +251,7 @@ void engine_run(){
 		engine_update();
 
 		/* Render */
-		map_draw(&engine->map, engine->renderer);
-		player_draw(&engine->player, &engine->map, engine->renderer);
-
-		rc_cast(engine->renderer, &engine->player, &engine->map);
-		rc_draw_rays(engine->renderer, &engine->player, &engine->map);
+		engine_draw();
 
 		uint32_t now = SDL_GetTicks();
 		engine->delta_time = (now - old) / 1000.0f;

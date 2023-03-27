@@ -13,12 +13,6 @@ static uint32_t colors[4] = {BLACK, RED, GREEN, BLUE};
 static Rc_context * rctx;
 static bool initted = false;
 
-double perpendicular_distance(float viewing_angle, const vec2f * p, const vec2f * hit){
-	double dx = hit->x - p->x;
-	double dy = p->y - hit->y;
-	return (dx * cos(TO_RAD(viewing_angle))) + (dy * sin(TO_RAD(viewing_angle)));
-}
-
 void world_2_screen(const vec2f * world_pos, vec2i * screen, const Map * map){
 	size_t map_w = map->cell_size * map->w;
 	size_t map_h = map->cell_size * map->h;
@@ -30,7 +24,7 @@ void world_2_screen(const vec2f * world_pos, vec2i * screen, const Map * map){
 	screen->y = world_pos->y * y_scale;
 }
 
-void rc_init(SDL_Renderer * renderer, Player * player, SDL_Rect viewport){
+void rc_init(SDL_Renderer * renderer, Player * player, size_t proj_plane_w, size_t proj_plane_h){
 	if(initted){
 		//TODO: Log error
 		return;
@@ -38,19 +32,11 @@ void rc_init(SDL_Renderer * renderer, Player * player, SDL_Rect viewport){
 	rctx = malloc(sizeof(Rc_context));
 	assert(rctx != NULL);
 
-	rctx->proj_plane_w = PROJECTION_PLANE_W;
-	rctx->proj_plane_h = PROJECTION_PLANE_H;
-	rctx->proj_plane_center = PROJECTION_PLANE_H / 2;
+	rctx->proj_plane_w = proj_plane_w;
+	rctx->proj_plane_h = proj_plane_h;
+	rctx->proj_plane_center = proj_plane_h / 2;
 
-	rctx->h_hits = malloc(sizeof(vec2f) * rctx->proj_plane_w);
-	rctx->v_hits = malloc(sizeof(vec2f) * rctx->proj_plane_w);
 	rctx->hits = malloc(sizeof(vec2f) * rctx->proj_plane_w);
-
-	assert(rctx->h_hits != NULL);
-
-	memset(rctx->h_hits, 0, sizeof(vec2f) * rctx->proj_plane_w);
-	memset(rctx->v_hits, 0, sizeof(vec2f) * rctx->proj_plane_w);
-
 	memset(rctx->hits, 0, sizeof(vec2f) * rctx->proj_plane_w);
 
 	initted = true;
@@ -60,16 +46,6 @@ void rc_init(SDL_Renderer * renderer, Player * player, SDL_Rect viewport){
 	size_t dim = rctx->proj_plane_w * rctx->proj_plane_h;
 	rctx->fbuffer = malloc(sizeof(uint32_t) * dim);
 	assert(rctx->fbuffer != NULL);
-	rctx->viewport = viewport;
-
-	SDL_Texture * texture = SDL_CreateTexture(renderer, 
-											 SDL_PIXELFORMAT_RGBA8888,
-											 SDL_TEXTUREACCESS_STREAMING,
-											 rctx->proj_plane_w,
-											 rctx->proj_plane_h);
-
-	assert(texture != NULL);
-	rctx->fbuffer_texture = texture;
 }
 
 void rc_clear_buffer(){
@@ -79,7 +55,6 @@ void rc_clear_buffer(){
 
 void rc_quit(){
 	assert(rctx != NULL);
-	free(rctx->h_hits);
 	free(rctx);
 }
 
@@ -215,7 +190,7 @@ double real_distance(double angle, const vec2f * a, const vec2f * b){
 	return sqrt(dx*dx + dy*dy);
 }
 
-void draw_wall_slice(SDL_Renderer * renderer, int y_top, int y_bot, int x, uint32_t color){
+void draw_wall_slice(int y_top, int y_bot, int x, uint32_t color){
 	if(y_top < 0)
 		y_top = 0;
 	if(y_bot >= rctx->proj_plane_w)
@@ -226,19 +201,16 @@ void draw_wall_slice(SDL_Renderer * renderer, int y_top, int y_bot, int x, uint3
 	}
 }
 
-//double real_distance(int x, int y)
-void rc_cast(SDL_Renderer * renderer, const Player * player, const Map * map){ 
-	memset(rctx->h_hits, 0, sizeof(vec2f) * rctx->proj_plane_w);
-	memset(rctx->v_hits, 0, sizeof(vec2f) * rctx->proj_plane_w);
+uint32_t * rc_cast(SDL_Renderer * renderer, const Player * player, const Map * map){ 
+	//TODO: no need to calculate this here every time move to inie
+	double angle_step = player->fov / (double)rctx->proj_plane_w;
 
-	memset(rctx->hits, 0, sizeof(vec2f) * rctx->proj_plane_w);
-	double angle_step = player->fov / (double)PROJECTION_PLANE_W;
-
-	// move the starting ray_angle direction to the leftmost part of the
+	// move the starting ray_angle direction to the leftmost part of the arc
 	double ray_angle = player->viewing_angle + (player->fov / 2);
 
-	SDL_RenderSetViewport(renderer, &rctx->viewport);
 	rc_clear_buffer();
+	memset(rctx->hits, 0, sizeof(vec2f) * rctx->proj_plane_w);
+
 	/*Trace a ray for every colum*/
 	for(size_t x = 0; x < rctx->proj_plane_w; x++){
 		if(ray_angle < 0) ray_angle += 360.0f;
@@ -250,39 +222,41 @@ void rc_cast(SDL_Renderer * renderer, const Player * player, const Map * map){
 		double h_dist = real_distance(ray_angle, &player->position, &h_hit);
 		double v_dist = real_distance(ray_angle, &player->position, &v_hit);
 
-		double dist_to_wall = MIN(h_dist, v_dist);
-
-		vec2i * map_coords;
-		map_coords = h_dist < v_dist ? &map_coords_h : &map_coords_v;
-
 		rctx->hits[x] = h_dist < v_dist ? h_hit : v_hit;
-		rctx->h_hits[x] = h_hit;
-		rctx->v_hits[x] = v_hit;
+		
+		vec2i * map_coords = h_dist < v_dist ? &map_coords_h : &map_coords_v;
 
-		int slice_height = (int)(((float)map->cell_size / (float)dist_to_wall) * (float)player->dist_from_proj_plane);
+		double dist_to_wall = MIN(h_dist, v_dist);
+		int slice_height = (int)(((double)map->cell_size / dist_to_wall) * player->dist_from_proj_plane);
 
         int wall_bot = (slice_height * 0.5f) + rctx->proj_plane_center;
 	    int wall_top = rctx->proj_plane_center - (slice_height * 0.5f);       
 
-		assert(map_coords->x >= 0 && map_coords->x < map->w && map_coords->y >= 0 && map_coords->y < map->h);
+		assert(map_coords->x >= 0     &&
+			   map_coords->x < map->w &&
+			   map_coords->y >= 0     &&
+			   map_coords->y < map->h);
 
 		uint32_t color = colors[map->values[map_coords->y * map->w + map_coords->x]];
 
-		draw_wall_slice(renderer, wall_top, wall_bot, x, color);
+		draw_wall_slice(wall_top, wall_bot, x, color);
 
 		ray_angle -= angle_step;
 		if(ray_angle > 360.0f) ray_angle -= 360.0f;
 	}
 
-	SDL_UpdateTexture(rctx->fbuffer_texture, NULL, rctx->fbuffer, sizeof(uint32_t) * rctx->proj_plane_w);
-	SDL_RenderCopy(renderer, rctx->fbuffer_texture, NULL, NULL);
+	return rctx->fbuffer;
 }
 
 void rc_draw_rays(SDL_Renderer * renderer, const Player * player, const Map * map){
+	assert(renderer != NULL);
+
 	SDL_RenderSetViewport(renderer, &map->viewport);
 	engine_set_color(0xffffffff);
+
 	for(size_t i = 0; i < rctx->proj_plane_w; i++){
 		const vec2f * hit = &rctx->hits[i];
+		assert(hit != NULL);
 
 		if(hit->x != INT_MAX && hit->y != INT_MAX){
 			vec2i player_screen, hit_screen;
