@@ -1,6 +1,5 @@
 #include "RC_Core.h"
 
-
 #define RCDEF inline static
 
 static Rc_context * rctx;
@@ -178,15 +177,14 @@ RCDEF double RC_Core_real_distance(double angle, const vec2f * a, const vec2f * 
 RCDEF void draw_wall_slice(int y_top, int y_bot, int x, uint32_t color){
 	if(y_top < 0)
 		y_top = 0;
-	if(y_bot >= rctx->proj_plane_w)
-		y_bot = rctx->proj_plane_w - 1;
+
+	if(y_bot >= rctx->proj_plane_h)
+		y_bot = rctx->proj_plane_h;
 
 	for(int y = y_top; y < y_bot; y++){
 
-		assert(x >= 0     &&
-			   x < rctx->proj_plane_w &&
-			   y >= 0     &&
-			   y < rctx->proj_plane_h);
+		assert(x >= 0 && x < rctx->proj_plane_w);
+		assert(y >= 0 && y < rctx->proj_plane_h);
 
 		rctx->fbuffer[y * rctx->proj_plane_w + x] = color;
 	}

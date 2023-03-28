@@ -27,8 +27,8 @@ void player_init(Player * player, size_t projection_plane_w){
 	player->position.x = 96;
 	player->position.y = 224;
 
-	player->speed = 30.0f;
-	player->rotation_speed = 40.0f;
+	player->speed = 100.0f;
+	player->rotation_speed = 80.0f;
 }
 
 void player_update(Player * player){

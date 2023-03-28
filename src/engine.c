@@ -62,6 +62,7 @@ void RC_Engine_init(int w, int h){
 
 	engine = malloc(sizeof(Engine));
 	assert(engine != NULL);
+	memset(engine, 0, sizeof(Engine));
 
 	engine->window = window;
 	engine->renderer = renderer;
@@ -215,7 +216,8 @@ static void RC_Engine_draw(){
 	RC_DIE(SDL_UpdateTexture(engine->fbuffer_texture, NULL, fbuffer, pitch) < 0);
 	RC_DIE(SDL_RenderSetViewport(engine->renderer,&engine->viewports[SCENE_VIEWPORT]) < 0);
 	RC_DIE(SDL_RenderCopy(engine->renderer, engine->fbuffer_texture, NULL, NULL) < 0);
-	// draw the rays
+
+	//draw the rays
 	RC_Engine_set_color(0xffffffff);
 
 	const vec2f * hits = RC_Core_hits();
@@ -269,6 +271,7 @@ void RC_Engine_run(){
 		RC_Engine_present();
 
 		RC_Engine_cap_framerate();
+
 	}
 }
 
