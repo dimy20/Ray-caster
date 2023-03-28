@@ -1,8 +1,6 @@
 #include "engine.h"
-#include "rc.h"
-
-#define PROJ_PLANE_W 320
-#define PROJ_PLANE_H 200
+#include "RC_Core.h"
+#include "map.h"
 
 typedef struct{
 	/* Raycasting*/
@@ -45,33 +43,22 @@ int temp_map[8 * 8] = {
 	1, 1, 1, 1, 1, 1, 1, 1,
 };
 
-int test_collision(const SDL_Rect a, const SDL_Rect b){
-	return (a.x < b.x + b.w &&
-			a.x + a.w > b.x &&
-			a.y < b.y + b.h &&
-			a.y + a.h > b.y);
-};
-
-static void engine_init_viewport(SDL_Rect * vp, int x, int y, int w, int h){
+static void RC_Engine_init_viewport(SDL_Rect * vp, int x, int y, int w, int h){
 	vp->x = x;
 	vp->y = y;
 	vp->w = w;
 	vp->h = h;
 }
 
-void engine_init(int w, int h){
+void RC_Engine_init(int w, int h){
 	assert(!initialized);
 
 	SDL_Window * window;
 	SDL_Renderer * renderer;
 
-	if(SDL_Init(SDL_INIT_EVERYTHING) < 0) DIE(SDL_GetError());
-
-	window = SDL_CreateWindow("rc", 0, 0, w, h, 0);
-	if(!window) DIE(SDL_GetError());
-
-	renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
-	if(!renderer) DIE(SDL_GetError());
+	RC_DIE(SDL_Init(SDL_INIT_EVERYTHING) < 0);
+	RC_DIE((window = SDL_CreateWindow("rc", 0, 0, w, h, 0)) == NULL);
+	RC_DIE((renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED)) == NULL);
 
 	engine = malloc(sizeof(Engine));
 	assert(engine != NULL);
@@ -87,38 +74,35 @@ void engine_init(int w, int h){
 
 	/* Viewports */
 	memset(engine->viewports, 0, sizeof(SDL_Rect) * VIEWPORTS_NUM);
-	engine_init_viewport(&engine->viewports[MAP_VIEWPORT], 0, 0, 300, 300);
-	engine_init_viewport(&engine->viewports[SCENE_VIEWPORT], 300 + 1, 0,
+	RC_Engine_init_viewport(&engine->viewports[MAP_VIEWPORT], 0, 0, 300, 300);
+	RC_Engine_init_viewport(&engine->viewports[SCENE_VIEWPORT], 300 + 1, 0,
 			             PROJ_PLANE_W, PROJ_PLANE_H);
 
 	/*This texture will be updated with the frame buffer that is drawn by
 	 * the rc core algorithm each frame*/
-	SDL_Texture * texture = SDL_CreateTexture(engine->renderer,
-											 SDL_PIXELFORMAT_RGBA8888,
-											 SDL_TEXTUREACCESS_STREAMING,
-											 PROJ_PLANE_W,
-											 PROJ_PLANE_H);
-	if(texture == NULL) DIE(SDL_GetError());
+	SDL_Texture * texture;
+	RC_DIE((texture = SDL_CreateTexture(engine->renderer,
+										SDL_PIXELFORMAT_RGBA8888,
+										SDL_TEXTUREACCESS_STREAMING,
+										PROJ_PLANE_W,
+										PROJ_PLANE_H)) == NULL);
+
 	engine->fbuffer_texture = texture;
 
-	SDL_Rect viewport = {0, 0, 300, 300};
-	map_init(&engine->map, temp_map, 8, 8, viewport);
+	map_init(&engine->map, temp_map, 8, 8, &engine->viewports[MAP_VIEWPORT]);
+	player_init(&engine->player, PROJ_PLANE_W);
 
-	rc_init(engine->renderer,
-			&engine->player,
-			PROJ_PLANE_W,
-			PROJ_PLANE_H);
+	RC_Core_init(PROJ_PLANE_W, PROJ_PLANE_H);
 
 	initialized = true;
 }
 
-void engine_quit(){
+void RC_Engine_quit(){
 	assert(engine != NULL);
+	RC_Core_quit();
+
 	SDL_DestroyRenderer(engine->renderer);
 	SDL_DestroyWindow(engine->window);
-
-
-	rc_quit();
 
 	map_quit(&engine->map);
 
@@ -127,7 +111,7 @@ void engine_quit(){
 	SDL_Quit();
 }
 
-inline static void engine_keydown(const SDL_KeyboardEvent * e){
+inline static void RC_Engine_keydown(const SDL_KeyboardEvent * e){
 	assert(engine != NULL);
 	SDL_Scancode code = e->keysym.scancode;
 	if(e->repeat == 0 && code < KEYBOARD_MAX_KEYS){
@@ -136,7 +120,7 @@ inline static void engine_keydown(const SDL_KeyboardEvent * e){
 
 }
 
-inline static void engine_keyup(const SDL_KeyboardEvent * e){
+inline static void RC_Engine_keyup(const SDL_KeyboardEvent * e){
 	assert(engine != NULL);
 	SDL_Scancode code = e->keysym.scancode;
 	if(e->repeat == 0 && code < KEYBOARD_MAX_KEYS){
@@ -144,7 +128,7 @@ inline static void engine_keyup(const SDL_KeyboardEvent * e){
 	}
 }
 
-void engine_handle_input(){
+void RC_Engine_handle_input(){
 	assert(engine != NULL);
 	SDL_Event e;
 	while(SDL_PollEvent(&e)){
@@ -153,10 +137,10 @@ void engine_handle_input(){
 				engine->running = false;
 				break;
 			case SDL_KEYDOWN:
-				engine_keydown(&e.key);
+				RC_Engine_keydown(&e.key);
 				break;
 			case SDL_KEYUP:
-				engine_keyup(&e.key);
+				RC_Engine_keyup(&e.key);
 				break;
 			default:
 				break;
@@ -164,21 +148,20 @@ void engine_handle_input(){
 	}
 }
 
-static void engine_clear(){
-	SDL_SetRenderDrawColor(engine->renderer, 0, 0, 0, 0);
-	SDL_RenderClear(engine->renderer);
+static void RC_Engine_clear(){
+	RC_DIE(SDL_SetRenderDrawColor(engine->renderer, 0, 0, 0, 0) < 0);
+	RC_DIE(SDL_RenderClear(engine->renderer) < 0);
 }
 
-static void engine_present(){
+static void RC_Engine_present(){
 	assert(engine != NULL);
 	SDL_RenderPresent(engine->renderer);
 }
 
-
-inline uint32_t engine_pack_color(uint8_t r, uint8_t g, uint8_t b, uint8_t a){
+inline uint32_t RC_Engine_pack_color(uint8_t r, uint8_t g, uint8_t b, uint8_t a){
 	return r << 24 | g << 16 | b << 8 | a;
 }
-void engine_unpack_color(const uint32_t color, 
+static inline void RC_Engine_unpack_color(const uint32_t color, 
 								uint8_t * r,
 								uint8_t * g, 
 								uint8_t * b, 
@@ -190,7 +173,7 @@ void engine_unpack_color(const uint32_t color,
 	*a = color & 0xff;
 }
 
-void engine_cap_framerate(){
+void RC_Engine_cap_framerate(){
 	assert(engine != NULL);
 	static float remainder = 0.0f;
 	uint64_t wait;
@@ -213,83 +196,96 @@ void engine_cap_framerate(){
 	engine->old_time = SDL_GetTicks();
 }
 
-static void engine_update(){
+static void RC_Engine_update(){
 	player_update(&engine->player);
 }
 
-static void engine_draw(){
-	map_draw(&engine->map, engine->renderer);
+static void RC_Engine_draw(){
+	RC_DIE(SDL_RenderSetViewport(engine->renderer,
+					             &engine->viewports[MAP_VIEWPORT]) < 0);
+
+	SDL_Rect * map_vp = &engine->viewports[MAP_VIEWPORT];
+	map_draw(&engine->map, engine->renderer, map_vp->w, map_vp->h);
 	player_draw(&engine->player, &engine->map, engine->renderer);
 
-	uint32_t * fbuffer = rc_cast(engine->renderer, &engine->player, &engine->map);
+	const uint32_t * fbuffer = RC_Core_render(&engine->player, &engine->map);
 
 	size_t pitch = sizeof(uint32_t) * PROJ_PLANE_W;
 
-	if(SDL_UpdateTexture(engine->fbuffer_texture, NULL, fbuffer, pitch) < 0)
-		DIE(SDL_GetError());
+	RC_DIE(SDL_UpdateTexture(engine->fbuffer_texture, NULL, fbuffer, pitch) < 0);
+	RC_DIE(SDL_RenderSetViewport(engine->renderer,&engine->viewports[SCENE_VIEWPORT]) < 0);
+	RC_DIE(SDL_RenderCopy(engine->renderer, engine->fbuffer_texture, NULL, NULL) < 0);
+	// draw the rays
+	RC_Engine_set_color(0xffffffff);
 
-	if(SDL_RenderSetViewport(engine->renderer, &engine->viewports[SCENE_VIEWPORT]) < 0)
-		DIE(SDL_GetError());
+	const vec2f * hits = RC_Core_hits();
 
-	if(SDL_RenderCopy(engine->renderer, engine->fbuffer_texture, NULL, NULL) < 0){
-		DIE(SDL_GetError());
+	RC_DIE(SDL_RenderSetViewport(engine->renderer, &engine->viewports[MAP_VIEWPORT]) < 0);
+
+	for(size_t i = 0; i < PROJ_PLANE_W; i++){
+		const vec2f * hit = &hits[i];
+		assert(hit != NULL);
+
+		if(hit->x != INT_MAX && hit->y != INT_MAX){
+			vec2i player_screen, hit_screen;
+
+			world_2_screen(&engine->map, &engine->player.position, &player_screen);
+			vec2f hitf;
+
+			hitf.x = hit->x;
+			hitf.y = hit->y;
+
+			world_2_screen(&engine->map, &hitf, &hit_screen);
+
+			RC_DIE(SDL_RenderDrawLine(engine->renderer,
+									  player_screen.x,
+									  player_screen.y,
+									  hit_screen.x,
+									  hit_screen.y) < 0);
+		}
 	}
-
-	rc_draw_rays(engine->renderer, &engine->player, &engine->map);
 }
 
-void engine_run(){
+void RC_Engine_run(){
 	engine->old_time = SDL_GetTicks();
 
 	uint32_t old = SDL_GetTicks();
 
 	while(engine->running){
-		engine_clear();
+		RC_Engine_clear();
 
-		engine_handle_input();
+		RC_Engine_handle_input();
 		/* update */
-		engine_update();
+		RC_Engine_update();
 
 		/* Render */
-		engine_draw();
+		RC_Engine_draw();
 
 		uint32_t now = SDL_GetTicks();
 		engine->delta_time = (now - old) / 1000.0f;
 		old = now;
 
 		/* End Render */
-		engine_present();
+		RC_Engine_present();
 
-		engine_cap_framerate();
+		RC_Engine_cap_framerate();
 	}
 }
 
-uint8_t engine_test_inputkey(SDL_Scancode key){
+uint8_t RC_Engine_test_inputkey(SDL_Scancode key){
 	assert(engine != NULL);
 	return engine->keyboard[key];
 }
 
-void engine_set_color(uint32_t color){
+void RC_Engine_set_color(uint32_t color){
 	assert(engine != NULL);
 	uint8_t r, g, b, a;
-	engine_unpack_color(color, &r, &g, &b, &a);
+	RC_Engine_unpack_color(color, &r, &g, &b, &a);
 
-	if(SDL_SetRenderDrawColor(engine->renderer, r, g, b, a) < 0){
-		DIE(SDL_GetError());
-	}
+	RC_DIE(SDL_SetRenderDrawColor(engine->renderer, r, g, b, a) < 0);
 }
 
-void engine_draw_rect(SDL_Rect * rect){
-	assert(engine != NULL);
-	SDL_RenderDrawRect(engine->renderer, rect);
-}
-
-void engine_query_window(int * w, int * h){
-	assert(engine != NULL);
-	*w = engine->w;
-	*h = engine->h;
-}
-
-double engine_deltatime(){
+double RC_Engine_deltatime(){
 	return engine->delta_time;
 }
+

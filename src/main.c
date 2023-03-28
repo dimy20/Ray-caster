@@ -12,7 +12,7 @@
 #define H 728
 
 int main(){
-	engine_init(W, H);
-	engine_run();
-	engine_quit();
+	RC_Engine_init(W, H);
+	RC_Engine_run();
+	RC_Engine_quit();
 }

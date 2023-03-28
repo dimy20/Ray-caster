@@ -1,11 +1,9 @@
 #pragma once
+
 #include <SDL2/SDL.h>
-
-#include "engine.h"
-#include "rc_math.h"
-#include "map.h"
-
 #include <math.h>
+
+#include "map.h"
 
 #define FOV 60
 #define PLAYER_HEIGHT 32

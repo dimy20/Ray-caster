@@ -1,28 +1,16 @@
 #include "player.h"
+#include "engine.h"
+#include "rc_math.h"
 
-static void world_2_screen(const vec2f * world_pos, vec2i * screen, const Map * map){
-	size_t map_w = map->cell_size * map->w;
-	size_t map_h = map->cell_size * map->h;
-
-	float x_scale = (float)(map->viewport.w) / (float)(map_w);
-	float y_scale = (float)(map->viewport.h) / (float)(map_h);
-
-	screen->x = (int)(world_pos->x * x_scale);
-	screen->y = (int)(world_pos->y * y_scale);
-}
-
-void player_draw(const Player * player,
-				 const Map * map,
-				 SDL_Renderer * renderer){
-
+void player_draw(const Player * player, const Map * map, SDL_Renderer * renderer){
 	vec2i screen_position;
-	world_2_screen(&player->position, &screen_position, map);
+	world_2_screen(map, &player->position, &screen_position);
 
 	SDL_Rect rect = {screen_position.x,
 					 screen_position.y,
 					 5, 5};
 
-	engine_set_color(0xffffffff);
+	RC_Engine_set_color(0xffffffff);
 	SDL_RenderFillRect(renderer, &rect);
 }
 
@@ -44,13 +32,13 @@ void player_init(Player * player, size_t projection_plane_w){
 }
 
 void player_update(Player * player){
-	double delta_time = engine_deltatime();
+	double delta_time = RC_Engine_deltatime();
 
-	bool pressed_w = engine_test_inputkey(SDL_SCANCODE_W);
-	bool pressed_s = engine_test_inputkey(SDL_SCANCODE_S);
+	bool pressed_w = RC_Engine_test_inputkey(SDL_SCANCODE_W);
+	bool pressed_s = RC_Engine_test_inputkey(SDL_SCANCODE_S);
 
-	bool pressed_d = engine_test_inputkey(SDL_SCANCODE_D);
-	bool pressed_a = engine_test_inputkey(SDL_SCANCODE_A);
+	bool pressed_d = RC_Engine_test_inputkey(SDL_SCANCODE_D);
+	bool pressed_a = RC_Engine_test_inputkey(SDL_SCANCODE_A);
 
 	if(pressed_s || pressed_w){
 		vec2f dir;
