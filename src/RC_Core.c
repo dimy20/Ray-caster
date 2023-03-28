@@ -10,6 +10,18 @@ RCDEF void RC_Core_clear_buffer(){
 	memset(rctx->fbuffer, 0, sizeof(uint32_t) * dim);
 }
 
+RCDEF double RC_Core_perpendicular_distance(double viewing_angle, const vec2f * p, const vec2f * hit){
+	double dx = hit->x - p->x;
+	double dy = p->y - hit->y;
+	return (dx * cos(TO_RAD(viewing_angle))) + (dy * sin(TO_RAD(viewing_angle)));
+}
+
+RCDEF double RC_Core_real_distance(double angle, const vec2f * a, const vec2f * b){
+	double dx = abs(b->x - a->x);
+	double dy = abs(b->y - a->y);
+	return sqrt(dx*dx + dy*dy);
+}
+
 void RC_Core_init(size_t proj_plane_w, size_t proj_plane_h){
 	if(initted){
 		//TODO: Log error
@@ -42,11 +54,9 @@ void RC_Core_quit(){
 	free(rctx);
 }
 
-static vec2f RC_Core_cast_horizontal_intercept(const float ray_angle,
+static double RC_Core_cast_horizontal_intercept(const float ray_angle,
 									  const Player * player,
-									  const Map * map, vec2i * map_coords){
-	vec2f h_hit;
-
+									  const Map * map, vec2f * h_hit, vec2i * map_coords){
 	int step_y;
 	double delta_step_x;
 
@@ -56,21 +66,21 @@ static vec2f RC_Core_cast_horizontal_intercept(const float ray_angle,
 	int map_y = (int)(player->position.y / map->cell_size);
 
 	if(ray_angle > 0.0 && ray_angle < 180.0){
-		h_hit.y = map_y * (map->cell_size) - 1;
+		h_hit->y = map_y * (map->cell_size) - 1;
 
-		int dy = player->position.y - h_hit.y;
+		int dy = player->position.y - h_hit->y;
 		double dx = dy / tan(TO_RAD(ray_angle));
 
-		h_hit.x = player->position.x + dx;
+		h_hit->x = player->position.x + dx;
 
 		step_y = -map->cell_size;
 	}else{
-		h_hit.y = (map_y * map->cell_size) + map->cell_size;
+		h_hit->y = (map_y * map->cell_size) + map->cell_size;
 
-		int dy = h_hit.y - player->position.y;
+		int dy = h_hit->y - player->position.y;
 		double dx = dy / -tan(TO_RAD(ray_angle));
 
-		h_hit.x = player->position.x + dx;
+		h_hit->x = player->position.x + dx;
 		step_y = map->cell_size;
 	}
 
@@ -80,11 +90,13 @@ static vec2f RC_Core_cast_horizontal_intercept(const float ray_angle,
 		delta_step_x = map->cell_size / tan(TO_RAD(ray_angle));
 	}
 
+	double distance = DBL_MAX;
+
 	bool hit = false;
 	if(ray_angle != 0 && ray_angle != 180){
 		while(!hit){
-			int x = h_hit.x / map->cell_size;
-			int y = h_hit.y / map->cell_size;
+			int x = h_hit->x / map->cell_size;
+			int y = h_hit->y / map->cell_size;
 			if(x > map->w || x < 0 || y > map->h || y < 0){
 				map_coords->x = INT_MAX;
 				map_coords->y = INT_MAX;
@@ -93,54 +105,51 @@ static vec2f RC_Core_cast_horizontal_intercept(const float ray_angle,
 				map_coords->x = x;
 				map_coords->y = y;
 				hit = true;
+				distance = RC_Core_perpendicular_distance(player->viewing_angle, &player->position, h_hit);
 				// TODO: caculate distance here
 			}else{
-				h_hit.x += delta_step_x;
-				h_hit.y += (double)step_y;
+				h_hit->x += delta_step_x;
+				h_hit->y += (double)step_y;
 			}
 		}
 	}
 
-	if(!hit){
-		h_hit.x = INT_MAX;
-		h_hit.y = INT_MAX;
-	}
-
-	return h_hit;
+	return distance;
 }
 
-static vec2f RC_Core_cast_vertical_intercept(double ray_angle, const Player * player, const Map * map, vec2i * map_coords){
+static double RC_Core_cast_vertical_intercept(double ray_angle, const Player * player, const Map * map, vec2f * v_hit, vec2i * map_coords){
 	int step_x;
 	double delta_step_y;
-	vec2f v_hit;
 
 	// U, R
 	int map_x = (int)(player->position.x / map->cell_size);
 	if(ray_angle < 90.0 || ray_angle > 270.0){
-		v_hit.x = (map_x * map->cell_size) + map->cell_size;
+		v_hit->x = (map_x * map->cell_size) + map->cell_size;
 		//NOTE: floating point convesion, careful?
-		double dx = v_hit.x - player->position.x;
+		double dx = v_hit->x - player->position.x;
 		double dy = (double)dx * tan(TO_RAD(ray_angle));
-		v_hit.y = player->position.y - dy;
+		v_hit->y = player->position.y - dy;
 
 		step_x = map->cell_size;
 		delta_step_y = -(step_x * tan(TO_RAD(ray_angle)));
 	}else{
-		v_hit.x = (map_x * map->cell_size) -1;
-		double dx = player->position.x - v_hit.x;
+		v_hit->x = (map_x * map->cell_size) -1;
+		double dx = player->position.x - v_hit->x;
 
 		double dy = -((double)dx * tan(TO_RAD(ray_angle)));
-		v_hit.y = player->position.y - dy;
+		v_hit->y = player->position.y - dy;
 
 		step_x = -map->cell_size;
 		delta_step_y = -(step_x * tan(TO_RAD(ray_angle)));
 	}
 
+	double distance = DBL_MAX;
+
 	bool hit = false;
 	if(ray_angle != 180 || ray_angle != 90){
 		while(!hit){
-			int x = v_hit.x / map->cell_size;
-			int y = v_hit.y / map->cell_size;
+			int x = v_hit->x / map->cell_size;
+			int y = v_hit->y / map->cell_size;
 
 			if(x > map->w || x < 0 || y > map->h || y < 0){
 				map_coords->x = INT_MAX;
@@ -150,29 +159,18 @@ static vec2f RC_Core_cast_vertical_intercept(double ray_angle, const Player * pl
 			if(map->values[y * map->w + x] > 0){
 				map_coords->x = x;
 				map_coords->y = y;
+				distance = RC_Core_perpendicular_distance(player->viewing_angle, &player->position, v_hit);
 				hit = true;
 			}else{
-				v_hit.x += (double)step_x;
-				v_hit.y += delta_step_y;
+				v_hit->x += (double)step_x;
+				v_hit->y += delta_step_y;
 			}
 		}
-
 	}
 
-	if(!hit){
-		v_hit.x = INT_MAX;
-		v_hit.y = INT_MAX;
-	}
-
-	return v_hit;
-
+	return distance;
 }
 
-RCDEF double RC_Core_real_distance(double angle, const vec2f * a, const vec2f * b){
-	double dx = abs(b->x - a->x);
-	double dy = abs(b->y - a->y);
-	return sqrt(dx*dx + dy*dy);
-}
 
 RCDEF void draw_wall_slice(int y_top, int y_bot, int x, uint32_t color){
 	if(y_top < 0)
@@ -204,14 +202,12 @@ const uint32_t * RC_Core_render(const Player * player, const Map * map){
 	for(size_t x = 0; x < rctx->proj_plane_w; x++){
 		if(ray_angle < 0) ray_angle += 360.0f;
 		vec2i map_coords_h, map_coords_v;
+		vec2f h_hit, v_hit;
 
-		vec2f h_hit = RC_Core_cast_horizontal_intercept(ray_angle, player, map, &map_coords_h);
-		vec2f v_hit = RC_Core_cast_vertical_intercept(ray_angle, player, map, &map_coords_v);
+		double h_dist = RC_Core_cast_horizontal_intercept(ray_angle, player, map, &h_hit, &map_coords_h);
+		double v_dist = RC_Core_cast_vertical_intercept(ray_angle, player, map, &v_hit, &map_coords_v);
 
-		double h_dist = RC_Core_real_distance(ray_angle, &player->position, &h_hit);
-		double v_dist = RC_Core_real_distance(ray_angle, &player->position, &v_hit);
-
-		rctx->hits[x] = h_dist < v_dist ? h_hit : v_hit;
+		rctx->hits[x] = h_dist < v_dist ? h_hit: v_hit;
 		
 		vec2i * map_coords = h_dist < v_dist ? &map_coords_h : &map_coords_v;
 

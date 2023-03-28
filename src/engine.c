@@ -76,8 +76,7 @@ void RC_Engine_init(int w, int h){
 	/* Viewports */
 	memset(engine->viewports, 0, sizeof(SDL_Rect) * VIEWPORTS_NUM);
 	RC_Engine_init_viewport(&engine->viewports[MAP_VIEWPORT], 0, 0, 300, 300);
-	RC_Engine_init_viewport(&engine->viewports[SCENE_VIEWPORT], 300 + 1, 0,
-			             PROJ_PLANE_W, PROJ_PLANE_H);
+	RC_Engine_init_viewport(&engine->viewports[SCENE_VIEWPORT], 0, 0, w, h);
 
 	/*This texture will be updated with the frame buffer that is drawn by
 	 * the rc core algorithm each frame*/
@@ -202,13 +201,6 @@ static void RC_Engine_update(){
 }
 
 static void RC_Engine_draw(){
-	RC_DIE(SDL_RenderSetViewport(engine->renderer,
-					             &engine->viewports[MAP_VIEWPORT]) < 0);
-
-	SDL_Rect * map_vp = &engine->viewports[MAP_VIEWPORT];
-	map_draw(&engine->map, engine->renderer, map_vp->w, map_vp->h);
-	player_draw(&engine->player, &engine->map, engine->renderer);
-
 	const uint32_t * fbuffer = RC_Core_render(&engine->player, &engine->map);
 
 	size_t pitch = sizeof(uint32_t) * PROJ_PLANE_W;
@@ -220,10 +212,13 @@ static void RC_Engine_draw(){
 	//draw the rays
 	RC_Engine_set_color(0xffffffff);
 
-	const vec2f * hits = RC_Core_hits();
-
 	RC_DIE(SDL_RenderSetViewport(engine->renderer, &engine->viewports[MAP_VIEWPORT]) < 0);
 
+	SDL_Rect * map_vp = &engine->viewports[MAP_VIEWPORT];
+	map_draw(&engine->map, engine->renderer, map_vp->w, map_vp->h);
+	player_draw(&engine->player, &engine->map, engine->renderer);
+
+	const vec2f * hits = RC_Core_hits();
 	for(size_t i = 0; i < PROJ_PLANE_W; i++){
 		const vec2f * hit = &hits[i];
 		assert(hit != NULL);
@@ -246,6 +241,7 @@ static void RC_Engine_draw(){
 									  hit_screen.y) < 0);
 		}
 	}
+
 }
 
 void RC_Engine_run(){
