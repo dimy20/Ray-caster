@@ -95,7 +95,7 @@ static double RC_Core_cast_horizontal_intercept(const double ray_angle,
 		while(!hit){
 			int x = (int)(h_hit->x / map->cell_size);
 			int y = (int)(h_hit->y / map->cell_size);
-			if(x > map->w || x < 0 || y > map->h || y < 0){
+			if(x >= map->w || x < 0 || y >= map->h || y < 0){
 				map_coords->x = INT_MAX;
 				map_coords->y = INT_MAX;
 				break;
@@ -148,7 +148,7 @@ static double RC_Core_cast_vertical_intercept(double ray_angle, const Player * p
 			int x = v_hit->x / map->cell_size;
 			int y = v_hit->y / map->cell_size;
 
-			if(x > map->w || x < 0 || y > map->h || y < 0){
+			if(x >= map->w || x < 0 || y >= map->h || y < 0){
 				map_coords->x = INT_MAX;
 				map_coords->y = INT_MAX;
 				break;
