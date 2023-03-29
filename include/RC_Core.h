@@ -18,11 +18,12 @@ typedef struct{
 	size_t proj_plane_w;
 	size_t proj_plane_h;
 	size_t proj_plane_center;
+	double angle_step;
 	vec2f * hits;
 	uint32_t * fbuffer;
 }Rc_context;
 
-void RC_Core_init(size_t proj_plane_w, size_t proj_plane_h);
+void RC_Core_init(size_t proj_plane_w, size_t proj_plane_h, double fov);
 const uint32_t * RC_Core_render(const Player * player, const Map * map);
 void RC_Core_quit();
 const vec2f * RC_Core_hits();

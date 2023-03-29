@@ -17,12 +17,12 @@ RCDEF double RC_Core_perpendicular_distance(double viewing_angle, const vec2f * 
 }
 
 RCDEF double RC_Core_real_distance(double angle, const vec2f * a, const vec2f * b){
-	double dx = abs(b->x - a->x);
-	double dy = abs(b->y - a->y);
+	double dx = fabs(b->x - a->x);
+	double dy = fabs(b->y - a->y);
 	return sqrt(dx*dx + dy*dy);
 }
 
-void RC_Core_init(size_t proj_plane_w, size_t proj_plane_h){
+void RC_Core_init(size_t proj_plane_w, size_t proj_plane_h, double fov){
 	if(initted){
 		//TODO: Log error
 		return;
@@ -45,6 +45,7 @@ void RC_Core_init(size_t proj_plane_w, size_t proj_plane_h){
 
 	assert(rctx->fbuffer != NULL);
 	initted = true;
+	rctx->angle_step = fov / (double)rctx->proj_plane_w;
 }
 
 void RC_Core_quit(){
@@ -54,7 +55,7 @@ void RC_Core_quit(){
 	free(rctx);
 }
 
-static double RC_Core_cast_horizontal_intercept(const float ray_angle,
+static double RC_Core_cast_horizontal_intercept(const double ray_angle,
 									  const Player * player,
 									  const Map * map, vec2f * h_hit, vec2i * map_coords){
 	int step_y;
@@ -69,7 +70,7 @@ static double RC_Core_cast_horizontal_intercept(const float ray_angle,
 		h_hit->y = map_y * (map->cell_size) - 1;
 
 		int dy = player->position.y - h_hit->y;
-		double dx = dy / tan(TO_RAD(ray_angle));
+		double dx = (double)dy / tan(TO_RAD(ray_angle));
 
 		h_hit->x = player->position.x + dx;
 
@@ -78,25 +79,22 @@ static double RC_Core_cast_horizontal_intercept(const float ray_angle,
 		h_hit->y = (map_y * map->cell_size) + map->cell_size;
 
 		int dy = h_hit->y - player->position.y;
-		double dx = dy / -tan(TO_RAD(ray_angle));
+		double dx = (double)dy / -tan(TO_RAD(ray_angle));
 
 		h_hit->x = player->position.x + dx;
 		step_y = map->cell_size;
 	}
 
-	if(ray_angle > 180){
-		delta_step_x = map->cell_size / -tan(TO_RAD(ray_angle));
-	}else{
-		delta_step_x = map->cell_size / tan(TO_RAD(ray_angle));
-	}
+	delta_step_x = (double)map->cell_size / tan(TO_RAD(ray_angle));
+	delta_step_x = (ray_angle > 180.0) ? -delta_step_x : delta_step_x;
 
 	double distance = DBL_MAX;
 
 	bool hit = false;
 	if(ray_angle != 0 && ray_angle != 180){
 		while(!hit){
-			int x = h_hit->x / map->cell_size;
-			int y = h_hit->y / map->cell_size;
+			int x = (int)(h_hit->x / map->cell_size);
+			int y = (int)(h_hit->y / map->cell_size);
 			if(x > map->w || x < 0 || y > map->h || y < 0){
 				map_coords->x = INT_MAX;
 				map_coords->y = INT_MAX;
@@ -106,7 +104,6 @@ static double RC_Core_cast_horizontal_intercept(const float ray_angle,
 				map_coords->y = y;
 				hit = true;
 				distance = RC_Core_perpendicular_distance(player->viewing_angle, &player->position, h_hit);
-				// TODO: caculate distance here
 			}else{
 				h_hit->x += delta_step_x;
 				h_hit->y += (double)step_y;
@@ -146,7 +143,7 @@ static double RC_Core_cast_vertical_intercept(double ray_angle, const Player * p
 	double distance = DBL_MAX;
 
 	bool hit = false;
-	if(ray_angle != 180 || ray_angle != 90){
+	if(ray_angle != 180.0 && ray_angle != 90.0){
 		while(!hit){
 			int x = v_hit->x / map->cell_size;
 			int y = v_hit->y / map->cell_size;
@@ -171,7 +168,6 @@ static double RC_Core_cast_vertical_intercept(double ray_angle, const Player * p
 	return distance;
 }
 
-
 RCDEF void draw_wall_slice(int y_top, int y_bot, int x, uint32_t color){
 	if(y_top < 0)
 		y_top = 0;
@@ -189,23 +185,22 @@ RCDEF void draw_wall_slice(int y_top, int y_bot, int x, uint32_t color){
 }
 
 const uint32_t * RC_Core_render(const Player * player, const Map * map){ 
-	//TODO: no need to calculate this here every time move to inie
-	double angle_step = player->fov / (double)rctx->proj_plane_w;
-
 	// move the starting ray_angle direction to the leftmost part of the arc
-	double ray_angle = player->viewing_angle + (player->fov / 2);
+	double ray_angle = player->viewing_angle + (player->fov * 0.5);
 
 	RC_Core_clear_buffer();
 	memset(rctx->hits, 0, sizeof(vec2f) * rctx->proj_plane_w);
 
+	vec2i map_coords_h, map_coords_v;
+	vec2f h_hit, v_hit;
 	/*Trace a ray for every colum*/
 	for(size_t x = 0; x < rctx->proj_plane_w; x++){
 		if(ray_angle < 0) ray_angle += 360.0f;
-		vec2i map_coords_h, map_coords_v;
-		vec2f h_hit, v_hit;
 
 		double h_dist = RC_Core_cast_horizontal_intercept(ray_angle, player, map, &h_hit, &map_coords_h);
 		double v_dist = RC_Core_cast_vertical_intercept(ray_angle, player, map, &v_hit, &map_coords_v);
+
+		assert(h_dist > 0 && v_dist > 0);
 
 		rctx->hits[x] = h_dist < v_dist ? h_hit: v_hit;
 		
@@ -226,8 +221,8 @@ const uint32_t * RC_Core_render(const Player * player, const Map * map){
 
 		draw_wall_slice(wall_top, wall_bot, x, color);
 
-		ray_angle -= angle_step;
-		if(ray_angle > 360.0f) ray_angle -= 360.0f;
+		ray_angle -= rctx->angle_step;
+		if(ray_angle >= 360.0f) ray_angle -= 360.0f;
 	}
 
 	return rctx->fbuffer;

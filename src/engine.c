@@ -11,7 +11,7 @@ typedef struct{
 	uint8_t keyboard[KEYBOARD_MAX_KEYS];
 
 	/* SDL STUFF 
-	 * TODO: make this should live on a lower layer, a platform layer??*/
+	 * TODO: maybe this should live on a lower layer, a platform layer??*/
 	SDL_Renderer * renderer;
 
 	/* STATE */
@@ -92,7 +92,7 @@ void RC_Engine_init(int w, int h){
 	map_init(&engine->map, temp_map, 8, 8, &engine->viewports[MAP_VIEWPORT]);
 	player_init(&engine->player, PROJ_PLANE_W);
 
-	RC_Core_init(PROJ_PLANE_W, PROJ_PLANE_H);
+	RC_Core_init(PROJ_PLANE_W, PROJ_PLANE_H, engine->player.fov);
 
 	initialized = true;
 }
@@ -159,7 +159,7 @@ static void RC_Engine_present(){
 }
 
 inline uint32_t RC_Engine_pack_color(uint8_t r, uint8_t g, uint8_t b, uint8_t a){
-	return r << 24 | g << 16 | b << 8 | a;
+	return (uint32_t)(r << 24 | g << 16 | b << 8 | a);
 }
 static inline void RC_Engine_unpack_color(const uint32_t color, 
 								uint8_t * r,
@@ -167,23 +167,23 @@ static inline void RC_Engine_unpack_color(const uint32_t color,
 								uint8_t * b, 
 								uint8_t * a)
 {
-	*r = (color >> 24) & 0xff;
-	*g = (color >> 16) & 0xff;
-	*b = (color >> 8) & 0xff;
-	*a = color & 0xff;
+	*r = (uint8_t)((color >> 24) & 0xff);
+	*g = (uint8_t)((color >> 16) & 0xff);
+	*b = (uint8_t)((color >> 8) & 0xff);
+	*a = (uint8_t)(color & 0xff);
 }
 
 void RC_Engine_cap_framerate(){
 	assert(engine != NULL);
-	static float remainder = 0.0f;
-	uint64_t wait;
+	static double remainder = 0.0f;
+	uint32_t wait;
 
-	wait = 16 + remainder;
+	wait = (uint32_t)(16 + remainder);
 
-	remainder -= (int)remainder;
+	remainder -= (double)(int)remainder;
 
 	engine->now_time = SDL_GetTicks();
-	uint64_t delta = engine->now_time - engine->old_time;
+	uint32_t delta = engine->now_time - engine->old_time;
 
 	wait -= delta;
 
@@ -203,7 +203,7 @@ static void RC_Engine_update(){
 static void RC_Engine_draw(){
 	const uint32_t * fbuffer = RC_Core_render(&engine->player, &engine->map);
 
-	size_t pitch = sizeof(uint32_t) * PROJ_PLANE_W;
+	int pitch = sizeof(uint32_t) * PROJ_PLANE_W;
 
 	RC_DIE(SDL_UpdateTexture(engine->fbuffer_texture, NULL, fbuffer, pitch) < 0);
 	RC_DIE(SDL_RenderSetViewport(engine->renderer,&engine->viewports[SCENE_VIEWPORT]) < 0);
@@ -215,7 +215,7 @@ static void RC_Engine_draw(){
 	RC_DIE(SDL_RenderSetViewport(engine->renderer, &engine->viewports[MAP_VIEWPORT]) < 0);
 
 	SDL_Rect * map_vp = &engine->viewports[MAP_VIEWPORT];
-	map_draw(&engine->map, engine->renderer, map_vp->w, map_vp->h);
+	map_draw(&engine->map, engine->renderer, (size_t)map_vp->w, (size_t)map_vp->h);
 	player_draw(&engine->player, &engine->map, engine->renderer);
 
 	const vec2f * hits = RC_Core_hits();
@@ -260,7 +260,7 @@ void RC_Engine_run(){
 		RC_Engine_draw();
 
 		uint32_t now = SDL_GetTicks();
-		engine->delta_time = (now - old) / 1000.0f;
+		engine->delta_time = (double)(now - old) / 1000.0f;
 		old = now;
 
 		/* End Render */
