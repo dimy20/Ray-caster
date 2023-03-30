@@ -12,6 +12,8 @@ typedef enum{
 	TEXTURES_NUM,
 }TextureID;
 
+SDL_Surface * ceiling_texture;
+
 typedef struct{
 	/* Raycasting*/
 	Player player;
@@ -122,6 +124,9 @@ void RC_Engine_init(int w, int h){
 														"./assets/space_wall.png");
 	engine->textures[WOLF_WALL_TEXT] = RC_Texture_load(engine->renderer,
 														"./assets/wall.png");
+
+
+	ceiling_texture = engine->textures[WOLF_WALL_TEXT];
 
 	RC_Core_init(PROJ_PLANE_W, PROJ_PLANE_H, engine->player.fov, engine->textures, TEXTURES_NUM);
 

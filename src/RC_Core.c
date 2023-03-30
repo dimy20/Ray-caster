@@ -2,6 +2,8 @@
 
 #define RCDEF inline static
 
+extern SDL_Surface * ceiling_texture;
+
 static Rc_context * rctx;
 static bool initted = false;
 
@@ -50,6 +52,7 @@ void RC_Core_init(size_t proj_plane_w, size_t proj_plane_h, double fov, SDL_Surf
 	if(textures != NULL){
 		rctx->textures = textures;
 		rctx->textures_len = textures_len;
+
 	}
 }
 
@@ -223,7 +226,7 @@ void RC_Core_draw_textmapped_wall_slice(int texture_x, int slice_height, int scr
  *
  *  Using similar triangle equation and some trig we find all the values we need.
  * */
-void RC_Core_draw_floor_slice(const Player * player, const Map * map, double ray_angle,
+static void RC_Core_draw_floor_slice(const Player * player, const Map * map, double ray_angle,
 							 int screen_x, int wall_bottom_y){
 
 	assert(player != NULL);
@@ -276,6 +279,62 @@ void RC_Core_draw_floor_slice(const Player * player, const Map * map, double ray
 	}
 
 }
+
+/* 
+ * This function is symetric to the floor slice drawing function.
+ * It will draw the corresponding ceiling slice for a given column screen_x.
+ * The process of finding the world point P in the ceiling is completley symetric 
+ * to process of findig a point P for a floor cast. both floor and celing drawing could be
+ * merged into a single function, however since this raycasting engine will have vertical
+ * movement and possible flying, it's better to keep them seperate.
+ * */
+static void RC_Core_draw_celing_slice(const Player * player, const Map * map, double ray_angle, 
+								      int screen_x, int wall_top){
+
+	double straight_dist_to_P;
+	double real_dist_to_P;
+
+	double beta = ray_angle - player->viewing_angle;
+	double cosine_beta = cos(TO_RAD(beta));
+
+	double ray_dir_x = cos(TO_RAD(ray_angle));
+	double ray_dir_y = -sin(TO_RAD(ray_angle));
+
+	vec2f P;
+	for(int y = wall_top; y >= 0; y--){
+		int row_diff = rctx->proj_plane_center - y;
+		straight_dist_to_P = ((double)player->height / (double)row_diff) * player->dist_from_proj_plane;
+
+		real_dist_to_P = straight_dist_to_P / cosine_beta;
+
+		P.x = player->position.x + (ray_dir_x * real_dist_to_P);
+		P.y = player->position.y + (ray_dir_y * real_dist_to_P);
+
+		int map_x = P.x / map->cell_size;
+		int map_y = P.y / map->cell_size;
+
+		if(map_x >= 0 && map_x < map->w && map_y >= 0 && map_y < map->h){
+			int texture_x = (int)P.x % map->cell_size;
+			int texture_y = (int)P.y % map->cell_size;
+
+
+			int text_index = map->values[map_y * map->w + map_x];
+			assert(text_index >= 0 && text_index < rctx->textures_len);
+
+
+			assert(ceiling_texture != NULL);
+			assert(texture_x >= 0 && texture_x < ceiling_texture->w &&
+				   texture_y >= 0 && texture_y < ceiling_texture->h);
+
+			uint32_t pixel = ((uint32_t *)ceiling_texture->pixels)[texture_y * ceiling_texture->w + texture_x];
+			rctx->fbuffer[y * rctx->proj_plane_w + screen_x] = pixel;
+		}
+
+
+
+	}
+}
+
 const uint32_t * RC_Core_render(const Player * player, const Map * map, uint32_t flags){ 
 	assert(initted);
 	assert(player != NULL);
@@ -289,6 +348,7 @@ const uint32_t * RC_Core_render(const Player * player, const Map * map, uint32_t
 
 	vec2i map_coords_h, map_coords_v;
 	vec2f h_hit, v_hit;
+
 	/*Trace a ray for every colum*/
 	for(size_t x = 0; x < rctx->proj_plane_w; x++){
 		if(ray_angle < 0) ray_angle += 360.0f;
@@ -330,6 +390,7 @@ const uint32_t * RC_Core_render(const Player * player, const Map * map, uint32_t
 		}
 
 		RC_Core_draw_floor_slice(player, map, ray_angle, x, wall_bot);
+		RC_Core_draw_celing_slice(player, map, ray_angle, x, wall_top);
 
 		ray_angle -= rctx->angle_step;
 		if(ray_angle >= 360.0f) ray_angle -= 360.0f;
