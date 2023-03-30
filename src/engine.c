@@ -6,7 +6,7 @@
 //		able to set a map cell to the texture they want.
 //		This is temporary
 typedef enum{
-	UNUSED_TEX,
+	FLOOR_TEXT,
 	SPACE_WALL_TEXT,
 	WOLF_WALL_TEXT,
 	TEXTURES_NUM,
@@ -47,10 +47,10 @@ Engine * engine = NULL;
 int temp_map[8 * 8] = {
 	1, 1, 1, 1, 1, 1, 1, 1,
 	1, 0, 0, 0, 0, 0, 0, 1,
-	1, 0, 0, 2, 0, 2, 0, 1,
-	1, 0, 0, 2, 2, 2, 0, 1,
+	1, 0, 0, 1, 0, 1, 0, 1,
+	1, 0, 0, 1, 1, 1, 0, 1,
 	1, 0, 0, 0, 0, 0, 0, 1,
-	1, 0, 0, 0, 2, 0, 0, 1,
+	1, 0, 0, 0, 1, 0, 0, 1,
 	1, 0, 0, 0, 0, 0, 0, 1,
 	1, 1, 1, 1, 1, 1, 1, 1,
 };
@@ -114,6 +114,9 @@ void RC_Engine_init(int w, int h){
 
 	map_init(&engine->map, temp_map, 8, 8, &engine->viewports[MAP_VIEWPORT]);
 	player_init(&engine->player, PROJ_PLANE_W);
+
+	engine->textures[FLOOR_TEXT] = RC_Texture_load(engine->renderer,
+														"./assets/floor.png");
 
 	engine->textures[SPACE_WALL_TEXT] = RC_Texture_load(engine->renderer,
 														"./assets/space_wall.png");

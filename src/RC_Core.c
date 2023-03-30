@@ -211,8 +211,73 @@ void RC_Core_draw_textmapped_wall_slice(int texture_x, int slice_height, int scr
 		}
 	}
 }
+/*
+ * When drawing a wall slice is finished, We can draw the corresponding floor slice for the 
+ * previously
+ * rendered wall slice. The process in this case will be reversed, instead of casting rays 
+ * in world space, finding the distance to wall slicees and corresponding height in screen space,
+ * will be finding a position in world space from a position in screen space.
+ * (screen_x, y) -> point in world space, we'll map this point to a floor texture pixel color
+ * and use that color to draw the (screen_x, y) pixel on the screen.
+ *  y E [wall_slice_bottom_y, plane_height]
+ *
+ *  Using similar triangle equation and some trig we find all the values we need.
+ * */
+void RC_Core_draw_floor_slice(const Player * player, const Map * map, double ray_angle,
+							 int screen_x, int wall_bottom_y){
 
+	assert(player != NULL);
+	assert(map != NULL);
+	assert(rctx->textures != NULL);
+
+	vec2f P;
+	double straight_dist_to_P; // the straight distance to the floor point P.
+	for(int y = wall_bottom_y; y < rctx->proj_plane_h; y++){ // the range mentioned above
+		int row_diff = y - rctx->proj_plane_center;
+		// from similar triangle we can find the perpendicular distance from player to P.
+		straight_dist_to_P = ((double)player->height / (double)row_diff) * player->dist_from_proj_plane;
+
+		// abs?
+		/* We can derive this by looking a the scene from a top down perspective.
+		   After finding the real distace we can just scale the ray by this value
+		   to find p. */
+		double beta = player->viewing_angle - ray_angle;
+		double real_distance_to_P = straight_dist_to_P / cos(TO_RAD(beta));
+
+		// ray is assumed normalized
+		double ray_dir_x = cos(TO_RAD(ray_angle));
+		double ray_dir_y = -sin(TO_RAD(ray_angle));
+
+		P.x = player->position.x + (ray_dir_x * real_distance_to_P);
+		P.y = player->position.y + (ray_dir_y * real_distance_to_P);
+
+		int map_x = P.x / map->cell_size;
+		int map_y = P.y / map->cell_size;
+
+		if(map_x >= 0 && map_x < map->w && map_y >= 0 && map_y < map->h){
+			int texture_x = (int)P.x % map->cell_size;
+			int texture_y = (int)P.y % map->cell_size;
+
+			int text_index = map->values[map_y * map->w + map_x];
+			assert(text_index >= 0 && text_index < rctx->textures_len);
+
+			SDL_Surface * texture = rctx->textures[text_index];
+
+			assert(texture != NULL);
+			assert(texture_x >= 0 && texture_x < texture->w && 
+				   texture_y >= 0 && texture_y < texture->h);
+
+			uint32_t pixel = ((uint32_t *)texture->pixels)[texture_y * texture->w + texture_x];
+			rctx->fbuffer[y * rctx->proj_plane_w + screen_x] = pixel;
+		}
+	}
+
+}
 const uint32_t * RC_Core_render(const Player * player, const Map * map, uint32_t flags){ 
+	assert(initted);
+	assert(player != NULL);
+	assert(map != NULL);
+
 	// move the starting ray_angle direction to the leftmost part of the arc
 	double ray_angle = player->viewing_angle + (player->fov * 0.5);
 
@@ -260,6 +325,8 @@ const uint32_t * RC_Core_render(const Player * player, const Map * map, uint32_t
 		if(flags & DRAW_RAW_WALLS){
 			draw_wall_slice(wall_top, wall_bot, x, color);
 		}
+
+		RC_Core_draw_floor_slice(player, map, ray_angle, x, wall_bot);
 
 		ray_angle -= rctx->angle_step;
 		if(ray_angle >= 360.0f) ray_angle -= 360.0f;
