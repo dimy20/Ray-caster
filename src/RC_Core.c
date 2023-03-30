@@ -232,21 +232,24 @@ void RC_Core_draw_floor_slice(const Player * player, const Map * map, double ray
 
 	vec2f P;
 	double straight_dist_to_P; // the straight distance to the floor point P.
+
+	// ray is assumed normalized
+	double ray_dir_x = cos(TO_RAD(ray_angle));
+	double ray_dir_y = -sin(TO_RAD(ray_angle));
+
+	double beta = player->viewing_angle - ray_angle;
+	double cosine_beta = cos(TO_RAD(beta));
+
 	for(int y = wall_bottom_y; y < rctx->proj_plane_h; y++){ // the range mentioned above
 		int row_diff = y - rctx->proj_plane_center;
 		// from similar triangle we can find the perpendicular distance from player to P.
 		straight_dist_to_P = ((double)player->height / (double)row_diff) * player->dist_from_proj_plane;
 
-		// abs?
 		/* We can derive this by looking a the scene from a top down perspective.
 		   After finding the real distace we can just scale the ray by this value
 		   to find p. */
-		double beta = player->viewing_angle - ray_angle;
-		double real_distance_to_P = straight_dist_to_P / cos(TO_RAD(beta));
 
-		// ray is assumed normalized
-		double ray_dir_x = cos(TO_RAD(ray_angle));
-		double ray_dir_y = -sin(TO_RAD(ray_angle));
+		double real_distance_to_P = straight_dist_to_P / cosine_beta;
 
 		P.x = player->position.x + (ray_dir_x * real_distance_to_P);
 		P.y = player->position.y + (ray_dir_y * real_distance_to_P);
