@@ -14,6 +14,11 @@
 #include "player.h"
 #include "rc_math.h"
 
+typedef enum{
+	DRAW_RAW_WALLS = 0x1,
+	DRAW_TEXT_MAPPED_WALLS = 0x2,
+}RC_RenderFlag;
+
 typedef struct{
 	size_t proj_plane_w;
 	size_t proj_plane_h;
@@ -21,9 +26,11 @@ typedef struct{
 	double angle_step;
 	vec2f * hits;
 	uint32_t * fbuffer;
+	SDL_Surface ** textures;
+	size_t textures_len;
 }Rc_context;
 
-void RC_Core_init(size_t proj_plane_w, size_t proj_plane_h, double fov);
-const uint32_t * RC_Core_render(const Player * player, const Map * map);
+void RC_Core_init(size_t proj_plane_w, size_t proj_plane_h, double fov, SDL_Surface ** textures, size_t textures_len);
+const uint32_t * RC_Core_render(const Player * player, const Map * map, uint32_t flags);
 void RC_Core_quit();
 const vec2f * RC_Core_hits();

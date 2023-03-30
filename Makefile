@@ -6,7 +6,7 @@ BUILD_DIR = build
 INCLUDE_DIRS = include
 
 CFLAGS = -Werror -Wall -g -std=c11 $(foreach D, $(INCLUDE_DIRS), -I$(D))
-LDFLAGS = -lSDL2 -lm
+LDFLAGS = -lSDL2 -lSDL2_image -lm
 
 SRCS = $(shell find $(SRC_DIR) -name '*.c')
 OBJS = $(patsubst $(SRC_DIR)/%.c, $(BUILD_DIR)/%.o, $(SRCS))

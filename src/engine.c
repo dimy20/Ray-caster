@@ -2,6 +2,16 @@
 #include "RC_Core.h"
 #include "map.h"
 
+//TODO: this should live somewhere else, since users should be
+//		able to set a map cell to the texture they want.
+//		This is temporary
+typedef enum{
+	UNUSED_TEX,
+	SPACE_WALL_TEXT,
+	WOLF_WALL_TEXT,
+	TEXTURES_NUM,
+}TextureID;
+
 typedef struct{
 	/* Raycasting*/
 	Player player;
@@ -24,6 +34,8 @@ typedef struct{
 	SDL_Window * window;
 	int w, h;
 
+	SDL_Surface * textures[TEXTURES_NUM];
+
 	/* TIME */
 	double delta_time;
 	uint32_t old_time, now_time;
@@ -38,7 +50,7 @@ int temp_map[8 * 8] = {
 	1, 0, 0, 2, 0, 2, 0, 1,
 	1, 0, 0, 2, 2, 2, 0, 1,
 	1, 0, 0, 0, 0, 0, 0, 1,
-	1, 0, 0, 0, 3, 0, 0, 1,
+	1, 0, 0, 0, 2, 0, 0, 1,
 	1, 0, 0, 0, 0, 0, 0, 1,
 	1, 1, 1, 1, 1, 1, 1, 1,
 };
@@ -50,15 +62,26 @@ static void RC_Engine_init_viewport(SDL_Rect * vp, int x, int y, int w, int h){
 	vp->h = h;
 }
 
+static SDL_Surface * RC_Texture_load(SDL_Renderer * renderer, const char * filename){
+	assert(renderer != NULL);
+	SDL_Surface * surface, * s;
+
+	if(!(surface = IMG_Load(filename))) DIE(IMG_GetError());
+	if(!(s = SDL_ConvertSurfaceFormat(surface, SDL_PIXELFORMAT_RGBA8888, 0))) DIE(IMG_GetError());
+
+	return s;
+}
+
 void RC_Engine_init(int w, int h){
 	assert(!initialized);
 
 	SDL_Window * window;
 	SDL_Renderer * renderer;
 
-	RC_DIE(SDL_Init(SDL_INIT_EVERYTHING) < 0);
+	RC_DIE(SDL_Init(SDL_INIT_VIDEO) < 0);
 	RC_DIE((window = SDL_CreateWindow("rc", 0, 0, w, h, 0)) == NULL);
 	RC_DIE((renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED)) == NULL);
+	if(!(IMG_Init(IMG_INIT_PNG) & IMG_INIT_PNG)) DIE(IMG_GetError());
 
 	engine = malloc(sizeof(Engine));
 	assert(engine != NULL);
@@ -92,7 +115,12 @@ void RC_Engine_init(int w, int h){
 	map_init(&engine->map, temp_map, 8, 8, &engine->viewports[MAP_VIEWPORT]);
 	player_init(&engine->player, PROJ_PLANE_W);
 
-	RC_Core_init(PROJ_PLANE_W, PROJ_PLANE_H, engine->player.fov);
+	engine->textures[SPACE_WALL_TEXT] = RC_Texture_load(engine->renderer,
+														"./assets/space_wall.png");
+	engine->textures[WOLF_WALL_TEXT] = RC_Texture_load(engine->renderer,
+														"./assets/wall.png");
+
+	RC_Core_init(PROJ_PLANE_W, PROJ_PLANE_H, engine->player.fov, engine->textures, TEXTURES_NUM);
 
 	initialized = true;
 }
@@ -149,7 +177,7 @@ void RC_Engine_handle_input(){
 }
 
 static void RC_Engine_clear(){
-	RC_DIE(SDL_SetRenderDrawColor(engine->renderer, 0, 0, 0, 0) < 0);
+	RC_DIE(SDL_SetRenderDrawColor(engine->renderer, 0, 0, 0, 0xff) < 0);
 	RC_DIE(SDL_RenderClear(engine->renderer) < 0);
 }
 
@@ -201,7 +229,7 @@ static void RC_Engine_update(){
 }
 
 static void RC_Engine_draw(){
-	const uint32_t * fbuffer = RC_Core_render(&engine->player, &engine->map);
+	const uint32_t * fbuffer = RC_Core_render(&engine->player, &engine->map, DRAW_TEXT_MAPPED_WALLS);
 
 	int pitch = sizeof(uint32_t) * PROJ_PLANE_W;
 
@@ -244,6 +272,7 @@ static void RC_Engine_draw(){
 
 }
 
+
 void RC_Engine_run(){
 	engine->old_time = SDL_GetTicks();
 
@@ -263,11 +292,10 @@ void RC_Engine_run(){
 		engine->delta_time = (double)(now - old) / 1000.0f;
 		old = now;
 
-		/* End Render */
 		RC_Engine_present();
 
-		RC_Engine_cap_framerate();
-
+		//TODO: fix
+		//RC_Engine_cap_framerate();
 	}
 }
 

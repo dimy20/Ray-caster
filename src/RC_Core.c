@@ -22,7 +22,7 @@ RCDEF double RC_Core_real_distance(double angle, const vec2f * a, const vec2f * 
 	return sqrt(dx*dx + dy*dy);
 }
 
-void RC_Core_init(size_t proj_plane_w, size_t proj_plane_h, double fov){
+void RC_Core_init(size_t proj_plane_w, size_t proj_plane_h, double fov, SDL_Surface ** textures, size_t textures_len){
 	if(initted){
 		//TODO: Log error
 		return;
@@ -46,6 +46,11 @@ void RC_Core_init(size_t proj_plane_w, size_t proj_plane_h, double fov){
 	assert(rctx->fbuffer != NULL);
 	initted = true;
 	rctx->angle_step = fov / (double)rctx->proj_plane_w;
+
+	if(textures != NULL){
+		rctx->textures = textures;
+		rctx->textures_len = textures_len;
+	}
 }
 
 void RC_Core_quit(){
@@ -184,7 +189,30 @@ RCDEF void draw_wall_slice(int y_top, int y_bot, int x, uint32_t color){
 	}
 }
 
-const uint32_t * RC_Core_render(const Player * player, const Map * map){ 
+/*Draws a texture mapped wall slice for the current x value*/
+void RC_Core_draw_textmapped_wall_slice(int texture_x, int slice_height, int screen_x, SDL_Surface * texture){
+	assert(texture != NULL);
+
+	int pixel_y;
+	int texture_y;
+
+	size_t texture_size = texture->w;
+
+	for(int i = 0; i < slice_height; i++){
+		// location of this texture pixel on screen?
+		pixel_y = i + (rctx->proj_plane_center - slice_height / 2);
+		if(pixel_y >= 0 && pixel_y < rctx->proj_plane_h){
+
+			/*Makes the following mapping of values from [0, size] -> [0, column_height]
+			*Scaling the original texture to column height*/
+			texture_y = ((i * texture_size) / slice_height);
+			uint32_t pixel = ((uint32_t *)texture->pixels)[texture_y * texture->w + texture_x];
+			rctx->fbuffer[pixel_y * rctx->proj_plane_w + screen_x] = pixel;
+		}
+	}
+}
+
+const uint32_t * RC_Core_render(const Player * player, const Map * map, uint32_t flags){ 
 	// move the starting ray_angle direction to the leftmost part of the arc
 	double ray_angle = player->viewing_angle + (player->fov * 0.5);
 
@@ -203,6 +231,8 @@ const uint32_t * RC_Core_render(const Player * player, const Map * map){
 		assert(h_dist > 0 && v_dist > 0);
 
 		rctx->hits[x] = h_dist < v_dist ? h_hit: v_hit;
+
+		int texture_x = h_dist < v_dist ? (int)h_hit.x % 64 : (int)v_hit.y % 64;
 		
 		vec2i * map_coords = h_dist < v_dist ? &map_coords_h : &map_coords_v;
 
@@ -217,9 +247,19 @@ const uint32_t * RC_Core_render(const Player * player, const Map * map){
 			   map_coords->y >= 0     &&
 			   map_coords->y < map->h);
 
-		uint32_t color = map->colors[map->values[map_coords->y * map->w + map_coords->x]];
+		int cell_index = map->values[map_coords->y * map->w + map_coords->x];
+		uint32_t color = map->colors[cell_index];
 
-		draw_wall_slice(wall_top, wall_bot, x, color);
+		if(flags & DRAW_TEXT_MAPPED_WALLS){
+			assert(rctx->textures != NULL && rctx->textures_len > 0);
+			if(cell_index >= 1 && cell_index < rctx->textures_len){
+				RC_Core_draw_textmapped_wall_slice(texture_x, slice_height, x, rctx->textures[cell_index]);
+			}
+		}
+
+		if(flags & DRAW_RAW_WALLS){
+			draw_wall_slice(wall_top, wall_bot, x, color);
+		}
 
 		ray_angle -= rctx->angle_step;
 		if(ray_angle >= 360.0f) ray_angle -= 360.0f;
