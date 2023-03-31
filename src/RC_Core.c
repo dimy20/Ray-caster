@@ -67,27 +67,28 @@ static double RC_Core_cast_horizontal_intercept(const double ray_angle,
 	int step_y;
 	double delta_step_x;
 
+
 	/*Cell grid position for the current player's position.
-	 * We actually round this down because we're actually looking for h_hit
+	 * We actually  this down because we're actually looking for h_hit
 	 * x and y positions, not the player's.*/
 	int map_y = (int)(player->position.y / map->cell_size);
 
 	if(ray_angle > 0.0 && ray_angle < 180.0){
 		h_hit->y = map_y * (map->cell_size) - 1;
 
-		int dy = player->position.y - h_hit->y;
-		double dx = (double)dy / tan(TO_RAD(ray_angle));
+		double dy = (player->position.y) - h_hit->y;
+		double dx = dy / tan(TO_RAD(ray_angle));
 
-		h_hit->x = player->position.x + dx;
+		h_hit->x = (player->position.x) + dx;
 
 		step_y = -map->cell_size;
 	}else{
 		h_hit->y = (map_y * map->cell_size) + map->cell_size;
 
-		int dy = h_hit->y - player->position.y;
-		double dx = (double)dy / -tan(TO_RAD(ray_angle));
+		double dy = h_hit->y - (player->position.y);
+		double dx = dy / -tan(TO_RAD(ray_angle));
 
-		h_hit->x = player->position.x + dx;
+		h_hit->x = (player->position.x) + dx;
 		step_y = map->cell_size;
 	}
 
@@ -126,22 +127,22 @@ static double RC_Core_cast_vertical_intercept(double ray_angle, const Player * p
 	double delta_step_y;
 
 	// U, R
-	int map_x = (int)(player->position.x / map->cell_size);
+	int map_x = (int)((player->position.x) / map->cell_size);
 	if(ray_angle < 90.0 || ray_angle > 270.0){
 		v_hit->x = (map_x * map->cell_size) + map->cell_size;
 		//NOTE: floating point convesion, careful?
-		double dx = v_hit->x - player->position.x;
+		double dx = v_hit->x - (player->position.x);
 		double dy = (double)dx * tan(TO_RAD(ray_angle));
-		v_hit->y = player->position.y - dy;
+		v_hit->y = (player->position.y) - dy;
 
 		step_x = map->cell_size;
 		delta_step_y = -(step_x * tan(TO_RAD(ray_angle)));
 	}else{
 		v_hit->x = (map_x * map->cell_size) -1;
-		double dx = player->position.x - v_hit->x;
+		double dx = (player->position.x) - v_hit->x;
 
-		double dy = -((double)dx * tan(TO_RAD(ray_angle)));
-		v_hit->y = player->position.y - dy;
+		double dy = -(dx * tan(TO_RAD(ray_angle)));
+		v_hit->y = (player->position.y) - dy;
 
 		step_x = -map->cell_size;
 		delta_step_y = -(step_x * tan(TO_RAD(ray_angle)));
@@ -212,12 +213,12 @@ void RC_Core_draw_textmapped_wall_slice(int texture_x, int slice_height, int scr
 	}
 }
 /*
- * When drawing a wall slice is finished, We can draw the corresponding floor slice for the 
+ * When drawing a wall slice is finished, We can draw the corresponding  slice for the 
  * previously
  * rendered wall slice. The process in this case will be reversed, instead of casting rays 
  * in world space, finding the distance to wall slicees and corresponding height in screen space,
  * will be finding a position in world space from a position in screen space.
- * (screen_x, y) -> point in world space, we'll map this point to a floor texture pixel color
+ * (screen_x, y) -> point in world space, we'll map this point to a  texture pixel color
  * and use that color to draw the (screen_x, y) pixel on the screen.
  *  y E [wall_slice_bottom_y, plane_height]
  *
@@ -231,7 +232,7 @@ inline static void RC_Core_draw_floor_slice(const Player * player, const Map * m
 	assert(rctx->textures != NULL);
 
 	vec2f P;
-	double straight_dist_to_P; // the straight distance to the floor point P.
+	double straight_dist_to_P; // the straight distance to the  point P.
 
 	// ray is assumed normalized
 	double ray_dir_x = cos(TO_RAD(ray_angle));
@@ -284,10 +285,10 @@ inline static void RC_Core_draw_floor_slice(const Player * player, const Map * m
 }
 
 /* 
- * This function is symetric to the floor slice drawing function.
+ * This function is symetric to the  slice drawing function.
  * It will draw the corresponding ceiling slice for a given column screen_x.
  * The process of finding the world point P in the ceiling is completley symetric 
- * to process of findig a point P for a floor cast. both floor and celing drawing could be
+ * to process of findig a point P for a  cast. both  and celing drawing could be
  * merged into a single function, however since this raycasting engine will have vertical
  * movement and possible flying, it's better to keep them seperate.
  * */

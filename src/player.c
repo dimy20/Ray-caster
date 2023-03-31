@@ -8,7 +8,7 @@ void player_draw(const Player * player, const Map * map, SDL_Renderer * renderer
 
 	SDL_Rect rect = {screen_position.x,
 					 screen_position.y,
-					 5, 5};
+					 10, 10};
 
 	RC_Engine_set_color(0xffffffff);
 	SDL_RenderFillRect(renderer, &rect);
@@ -24,11 +24,15 @@ void player_init(Player * player, size_t projection_plane_w){
 	player->height = PLAYER_HEIGHT;
 	player->viewing_angle = PLAYER_VIEWING_ANGLE;
 
-	player->position.x = 96;
-	player->position.y = 224;
+	player->position.x = 96.0;
+	player->position.y = 224.0;
 
-	player->speed = 100.0f;
-	player->rotation_speed = 80.0f;
+	player->speed = 80.0f;
+	player->rotation_speed = 120.0f;
+}
+
+double lerp(double a, double b, double t){
+	return a + (b - a) * t;
 }
 
 void player_update(Player * player){
@@ -42,6 +46,7 @@ void player_update(Player * player){
 
 	if(pressed_s || pressed_w){
 		vec2f dir;
+
 		dir.x = cos(TO_RAD(player->viewing_angle));
 		dir.y = -sin(TO_RAD(player->viewing_angle));
 
@@ -53,21 +58,23 @@ void player_update(Player * player){
 	}
 
 	if(pressed_d || pressed_a){
-		vec2f dir;
-		dir.x = cos(TO_RAD(player->viewing_angle));
-		dir.y = sin(TO_RAD(player->viewing_angle));
+		double _speed = player->rotation_speed * delta_time;
+		player->viewing_angle += pressed_d ? -_speed : _speed;
+		//vec2f dir;
+		//dir.x = cos(TO_RAD(player->viewing_angle));
+		//dir.y = sin(TO_RAD(player->viewing_angle));
 
-		double rotation_speed = player->rotation_speed * delta_time;
+		//double rotation_speed = player->rotation_speed * delta_time;
 
-		double alpha_cos = cos(TO_RAD(pressed_d ? -rotation_speed : rotation_speed));
-		double alpha_sin = sin(TO_RAD(pressed_d ? -rotation_speed : rotation_speed));
+		//double alpha_cos = cos(TO_RAD(pressed_d ? -rotation_speed : rotation_speed));
+		//double alpha_sin = sin(TO_RAD(pressed_d ? -rotation_speed : rotation_speed));
 
-		vec2f new_dir;
+		//vec2f new_dir;
 
-		new_dir.x = dir.x * alpha_cos - dir.y * alpha_sin;
-		new_dir.y = dir.x * alpha_sin + dir.y * alpha_cos;
+		//new_dir.x = dir.x * alpha_cos - dir.y * alpha_sin;
+		//new_dir.y = dir.x * alpha_sin + dir.y * alpha_cos;
 
-		double new_angle = (atan2(new_dir.y, new_dir.x) * 180.0) / M_PI;
-		player->viewing_angle = new_angle;
+		//double new_angle = (atan2(new_dir.y, new_dir.x) * 180.0) / M_PI;
+		//player->viewing_angle = new_angle;
 	}
 }

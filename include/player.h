@@ -16,8 +16,8 @@ typedef struct{
 	double fov;
 	vec2f position;
 
-	float speed;
-	float rotation_speed;
+	double speed;
+	double rotation_speed;
 }Player;
 
 void player_draw(const Player * player,

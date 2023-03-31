@@ -2,7 +2,6 @@
 #include "RC_Core.h"
 #include "map.h"
 
-
 //TODO: this should live somewhere else, since users should be
 //		able to set a map cell to the texture they want.
 //		This is temporary
@@ -41,7 +40,7 @@ typedef struct{
 
 	/* TIME */
 	double delta_time;
-	uint32_t old_time, now_time;
+	uint32_t old_time;
 }Engine;
 
 static bool initialized = false;
@@ -93,16 +92,15 @@ void RC_Engine_init(int w, int h){
 
 	engine->window = window;
 	engine->renderer = renderer;
-	engine->old_time = engine->now_time = 0;
 	memset(engine->keyboard, 0, KEYBOARD_MAX_KEYS);
 
 	engine->running = true;
 	engine->w = w;
 	engine->h = h;
-
+	engine->old_time = SDL_GetTicks();
 	/* Viewports */
 	memset(engine->viewports, 0, sizeof(SDL_Rect) * VIEWPORTS_NUM);
-	RC_Engine_init_viewport(&engine->viewports[MAP_VIEWPORT], 0, 0, 300, 300);
+	RC_Engine_init_viewport(&engine->viewports[MAP_VIEWPORT], 0, 0, 200, 200);
 	RC_Engine_init_viewport(&engine->viewports[SCENE_VIEWPORT], 0, 0, w, h);
 
 	/*This texture will be updated with the frame buffer that is drawn by
@@ -210,29 +208,6 @@ static inline void RC_Engine_unpack_color(const uint32_t color,
 	*a = (uint8_t)(color & 0xff);
 }
 
-void RC_Engine_cap_framerate(){
-	assert(engine != NULL);
-	static double remainder = 0.0f;
-	uint32_t wait;
-
-	wait = (uint32_t)(16 + remainder);
-
-	remainder -= (double)(int)remainder;
-
-	engine->now_time = SDL_GetTicks();
-	uint32_t delta = engine->now_time - engine->old_time;
-
-	wait -= delta;
-
-	wait = MAX(wait, 1UL);
-
-	SDL_Delay(wait);
-
-	remainder += 0.667f;
-
-	engine->old_time = SDL_GetTicks();
-}
-
 static void RC_Engine_update(){
 	player_update(&engine->player);
 }
@@ -283,28 +258,20 @@ static void RC_Engine_draw(){
 }
 
 void RC_Engine_run(){
-	engine->old_time = SDL_GetTicks();
-
-	uint32_t old = SDL_GetTicks();
-
 	while(engine->running){
-		RC_Engine_clear();
+		uint32_t now = SDL_GetTicks();
+		engine->delta_time = (double)(now - engine->old_time) / 1000.0f;
+		engine->old_time = now;
 
 		RC_Engine_handle_input();
-		/* update */
+
 		RC_Engine_update();
 
+		RC_Engine_clear();
 		/* Render */
 		RC_Engine_draw();
 
-		uint32_t now = SDL_GetTicks();
-		engine->delta_time = (double)(now - old) / 1000.0f;
-		old = now;
-
 		RC_Engine_present();
-
-		//TODO: fix
-		//RC_Engine_cap_framerate();
 	}
 }
 
