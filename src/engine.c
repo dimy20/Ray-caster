@@ -2,6 +2,7 @@
 #include "RC_Core.h"
 #include "map.h"
 
+
 //TODO: this should live somewhere else, since users should be
 //		able to set a map cell to the texture they want.
 //		This is temporary
@@ -9,10 +10,10 @@ typedef enum{
 	FLOOR_TEXT,
 	SPACE_WALL_TEXT,
 	WOLF_WALL_TEXT,
+	CEILING_WALL_TEXT,
+
 	TEXTURES_NUM,
 }TextureID;
-
-SDL_Surface * ceiling_texture;
 
 typedef struct{
 	/* Raycasting*/
@@ -46,15 +47,15 @@ typedef struct{
 static bool initialized = false;
 Engine * engine = NULL;
 
-int temp_map[8 * 8] = {
-	1, 1, 1, 1, 1, 1, 1, 1,
-	1, 0, 0, 0, 0, 0, 0, 1,
-	1, 0, 0, 1, 0, 1, 0, 1,
-	1, 0, 0, 1, 1, 1, 0, 1,
-	1, 0, 0, 0, 0, 0, 0, 1,
-	1, 0, 0, 0, 1, 0, 0, 1,
-	1, 0, 0, 0, 0, 0, 0, 1,
-	1, 1, 1, 1, 1, 1, 1, 1,
+uint32_t temp_map[8 * 8] = {
+	WALL(1), WALL(1)   , WALL(1)   , WALL(1)   , WALL(1)   , WALL(1)   , WALL(1)   , WALL(1),
+	WALL(1), FLCL(0, 3), FLCL(0, 3), FLCL(0, 3), FLCL(0, 3), FLCL(0, 3), FLCL(0, 3), WALL(1),
+	WALL(1), FLCL(0, 3), FLCL(0, 3), WALL(1)   , FLCL(0, 3), WALL(1)   , FLCL(0, 3), WALL(1),
+	WALL(1), FLCL(0, 3), FLCL(0, 3), WALL(1)   , WALL(1)   , WALL(1)   , FLCL(0, 3), WALL(1),
+	WALL(1), FLCL(0, 3), FLCL(0, 3), FLCL(0, 3), FLCL(0, 3), FLCL(0, 3), FLCL(0, 3), WALL(1),
+	WALL(1), FLCL(0, 3), FLCL(0, 3), FLCL(0, 3), WALL(1)   , FLCL(0, 3), FLCL(0, 3), WALL(1),
+	WALL(1), FLCL(0, 3), FLCL(0, 3), FLCL(0, 3), FLCL(0, 3), FLCL(0, 3), FLCL(0, 3), WALL(1),
+	WALL(1), WALL(1)   , WALL(1)   , WALL(1)   , WALL(1)   , WALL(1)   , WALL(1)   , WALL(1),
 };
 
 static void RC_Engine_init_viewport(SDL_Rect * vp, int x, int y, int w, int h){
@@ -75,6 +76,7 @@ static SDL_Surface * RC_Texture_load(SDL_Renderer * renderer, const char * filen
 }
 
 void RC_Engine_init(int w, int h){
+
 	assert(!initialized);
 
 	SDL_Window * window;
@@ -125,8 +127,7 @@ void RC_Engine_init(int w, int h){
 	engine->textures[WOLF_WALL_TEXT] = RC_Texture_load(engine->renderer,
 														"./assets/wall.png");
 
-
-	ceiling_texture = engine->textures[WOLF_WALL_TEXT];
+	engine->textures[CEILING_WALL_TEXT] = engine->textures[WOLF_WALL_TEXT];
 
 	RC_Core_init(PROJ_PLANE_W, PROJ_PLANE_H, engine->player.fov, engine->textures, TEXTURES_NUM);
 
@@ -237,7 +238,8 @@ static void RC_Engine_update(){
 }
 
 static void RC_Engine_draw(){
-	const uint32_t * fbuffer = RC_Core_render(&engine->player, &engine->map, DRAW_TEXT_MAPPED_WALLS);
+	const uint32_t * fbuffer = RC_Core_render(&engine->player, &engine->map,
+											  DRAW_TEXT_MAPPED_WALLS);
 
 	int pitch = sizeof(uint32_t) * PROJ_PLANE_W;
 
@@ -279,7 +281,6 @@ static void RC_Engine_draw(){
 	}
 
 }
-
 
 void RC_Engine_run(){
 	engine->old_time = SDL_GetTicks();

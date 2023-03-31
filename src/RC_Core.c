@@ -2,8 +2,6 @@
 
 #define RCDEF inline static
 
-extern SDL_Surface * ceiling_texture;
-
 static Rc_context * rctx;
 static bool initted = false;
 
@@ -107,7 +105,8 @@ static double RC_Core_cast_horizontal_intercept(const double ray_angle,
 				map_coords->x = INT_MAX;
 				map_coords->y = INT_MAX;
 				break;
-			}else if(map->values[y * map->w + x] > 0){
+			}else if(map->values[y * map->w + x] & WALL_BIT){
+
 				map_coords->x = x;
 				map_coords->y = y;
 				hit = true;
@@ -155,13 +154,11 @@ static double RC_Core_cast_vertical_intercept(double ray_angle, const Player * p
 		while(!hit){
 			int x = v_hit->x / map->cell_size;
 			int y = v_hit->y / map->cell_size;
-
 			if(x >= map->w || x < 0 || y >= map->h || y < 0){
 				map_coords->x = INT_MAX;
 				map_coords->y = INT_MAX;
 				break;
-			}
-			if(map->values[y * map->w + x] > 0){
+			}else if(map->values[y * map->w + x] & WALL_BIT){
 				map_coords->x = x;
 				map_coords->y = y;
 				distance = RC_Core_perpendicular_distance(player->viewing_angle, &player->position, v_hit);
@@ -226,7 +223,7 @@ void RC_Core_draw_textmapped_wall_slice(int texture_x, int slice_height, int scr
  *
  *  Using similar triangle equation and some trig we find all the values we need.
  * */
-static void RC_Core_draw_floor_slice(const Player * player, const Map * map, double ray_angle,
+inline static void RC_Core_draw_floor_slice(const Player * player, const Map * map, double ray_angle,
 							 int screen_x, int wall_bottom_y){
 
 	assert(player != NULL);
@@ -264,17 +261,23 @@ static void RC_Core_draw_floor_slice(const Player * player, const Map * map, dou
 			int texture_x = (int)P.x % map->cell_size;
 			int texture_y = (int)P.y % map->cell_size;
 
-			int text_index = map->values[map_y * map->w + map_x];
-			assert(text_index >= 0 && text_index < rctx->textures_len);
+			uint32_t cell_data = map->values[map_y * map->w + map_x];
+			if(cell_data & FLOOR_CEIL_BIT){
+				int text_index = (int)((cell_data >> 16) & 0xff);
 
-			SDL_Surface * texture = rctx->textures[text_index];
+				assert(text_index >= 0 && text_index < rctx->textures_len);
 
-			assert(texture != NULL);
-			assert(texture_x >= 0 && texture_x < texture->w && 
-				   texture_y >= 0 && texture_y < texture->h);
+				SDL_Surface * texture = rctx->textures[text_index];
 
-			uint32_t pixel = ((uint32_t *)texture->pixels)[texture_y * texture->w + texture_x];
-			rctx->fbuffer[y * rctx->proj_plane_w + screen_x] = pixel;
+				assert(texture != NULL);
+				assert(texture_x >= 0 && texture_x < texture->w &&
+					   texture_y >= 0 && texture_y < texture->h);
+
+				uint32_t pixel = ((uint32_t *)texture->pixels)[texture_y * texture->w + texture_x];
+				rctx->fbuffer[y * rctx->proj_plane_w + screen_x] = pixel;
+
+			}
+
 		}
 	}
 
@@ -288,7 +291,7 @@ static void RC_Core_draw_floor_slice(const Player * player, const Map * map, dou
  * merged into a single function, however since this raycasting engine will have vertical
  * movement and possible flying, it's better to keep them seperate.
  * */
-static void RC_Core_draw_celing_slice(const Player * player, const Map * map, double ray_angle, 
+inline static void RC_Core_draw_celing_slice(const Player * player, const Map * map, double ray_angle, 
 								      int screen_x, int wall_top){
 
 	double straight_dist_to_P;
@@ -318,20 +321,22 @@ static void RC_Core_draw_celing_slice(const Player * player, const Map * map, do
 			int texture_y = (int)P.y % map->cell_size;
 
 
-			int text_index = map->values[map_y * map->w + map_x];
-			assert(text_index >= 0 && text_index < rctx->textures_len);
+			uint32_t cell_data = map->values[map_y * map->w + map_x];
+			if(cell_data & FLOOR_CEIL_BIT){
+				int ceiling_text_i = (cell_data >> 8) & 0xff;
+				assert(ceiling_text_i >= 0 && ceiling_text_i < rctx->textures_len);
 
+				SDL_Surface * ceiling_texture = rctx->textures[ceiling_text_i];
+				assert(ceiling_texture != NULL);
 
-			assert(ceiling_texture != NULL);
-			assert(texture_x >= 0 && texture_x < ceiling_texture->w &&
-				   texture_y >= 0 && texture_y < ceiling_texture->h);
+				assert(texture_x >= 0 && texture_x < ceiling_texture->w &&
+					   texture_y >= 0 && texture_y < ceiling_texture->h);
 
-			uint32_t pixel = ((uint32_t *)ceiling_texture->pixels)[texture_y * ceiling_texture->w + texture_x];
-			rctx->fbuffer[y * rctx->proj_plane_w + screen_x] = pixel;
+				uint32_t pixel = ((uint32_t *)ceiling_texture->pixels)[texture_y * ceiling_texture->w + texture_x];
+				rctx->fbuffer[y * rctx->proj_plane_w + screen_x] = pixel;
+			}
+
 		}
-
-
-
 	}
 }
 
@@ -375,12 +380,16 @@ const uint32_t * RC_Core_render(const Player * player, const Map * map, uint32_t
 			   map_coords->y >= 0     &&
 			   map_coords->y < map->h);
 
-		int cell_index = map->values[map_coords->y * map->w + map_coords->x];
+
+		uint32_t cell_data = map->values[map_coords->y * map->w + map_coords->x];
+		assert(cell_data & WALL_BIT);
+
+		uint32_t cell_index = cell_data >> 8;
 		uint32_t color = map->colors[cell_index];
 
 		if(flags & DRAW_TEXT_MAPPED_WALLS){
 			assert(rctx->textures != NULL && rctx->textures_len > 0);
-			if(cell_index >= 1 && cell_index < rctx->textures_len){
+			if(cell_index < rctx->textures_len){
 				RC_Core_draw_textmapped_wall_slice(texture_x, slice_height, x, rctx->textures[cell_index]);
 			}
 		}

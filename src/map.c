@@ -7,11 +7,12 @@
 
 static uint32_t colors[4] = {BLACK, RED, GREEN, BLUE};
 
-void map_init(Map * map, int * values, size_t w, size_t h, const SDL_Rect * viewport){
+void map_init(Map * map, uint32_t * values, size_t w, size_t h, const SDL_Rect * viewport){
 	assert(map != NULL);
 	assert(values != NULL);
 
-	map->values = malloc(sizeof(int) * (w * h));
+	map->values = malloc(sizeof(uint32_t) * (w * h));
+
 	assert(map->values != NULL);
 
 	map->w = w;
@@ -19,7 +20,7 @@ void map_init(Map * map, int * values, size_t w, size_t h, const SDL_Rect * view
 
 	map->cell_size = CELL_SIZE;
 	map->viewport = viewport;
-	memcpy(map->values, values, sizeof(int) * (w * h));
+	memcpy(map->values, values, sizeof(uint32_t) * (w * h));
 	map->colors = colors;
 }
 
@@ -53,7 +54,8 @@ void map_draw(const Map * map, SDL_Renderer * renderer, size_t window_w, size_t 
 							 (int)cell_w_screen,
 							 (int)cell_h_screen};
 
-			uint32_t color = colors[map->values[y * map->w + x]];
+			uint32_t cell_data = map->values[y * map->w + x];
+			uint32_t color = colors[cell_data & WALL_BIT ? cell_data >> 8 : 0];
 
 			RC_Engine_set_color(color);
 			RC_DIE(SDL_RenderFillRect(renderer, &rect) < 0);
