@@ -28,9 +28,13 @@ typedef struct{
 	uint32_t * fbuffer;
 	SDL_Surface ** textures;
 	size_t textures_len;
+	double * sprite_distance;
 }Rc_context;
 
 void RC_Core_init(size_t proj_plane_w, size_t proj_plane_h, double fov, SDL_Surface ** textures, size_t textures_len);
+void RC_Core_render_sprites(SDL_Renderer * renderer, const Map * map, const Player * player);
 const uint32_t * RC_Core_render(const Player * player, const Map * map, uint32_t flags);
 void RC_Core_quit();
 const vec2f * RC_Core_hits();
+
+

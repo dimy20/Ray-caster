@@ -10,9 +10,13 @@ typedef enum{
 	SPACE_WALL_TEXT,
 	WOLF_WALL_TEXT,
 	CEILING_WALL_TEXT,
+	BARREL_SPRITE,
 
 	TEXTURES_NUM,
 }TextureID;
+
+SDL_Texture * sprite_texture;
+extern uint32_t sprite_pixels[PROJ_PLANE_W * PROJ_PLANE_H];
 
 typedef struct{
 	/* Raycasting*/
@@ -47,13 +51,13 @@ static bool initialized = false;
 Engine * engine = NULL;
 
 uint32_t temp_map[8 * 8] = {
-	WALL(1), WALL(1)   , WALL(1)   , WALL(1)   , WALL(1)   , WALL(1)   , WALL(1)   , WALL(1),
-	WALL(1), FLCL(0, 3), FLCL(0, 3), FLCL(0, 3), FLCL(0, 3), FLCL(0, 3), FLCL(0, 3), WALL(1),
-	WALL(1), FLCL(0, 3), FLCL(0, 3), WALL(1)   , FLCL(0, 3), WALL(1)   , FLCL(0, 3), WALL(1),
-	WALL(1), FLCL(0, 3), FLCL(0, 3), WALL(1)   , WALL(1)   , WALL(1)   , FLCL(0, 3), WALL(1),
-	WALL(1), FLCL(0, 3), FLCL(0, 3), FLCL(0, 3), FLCL(0, 3), FLCL(0, 3), FLCL(0, 3), WALL(1),
-	WALL(1), FLCL(0, 3), FLCL(0, 3), FLCL(0, 3), WALL(1)   , FLCL(0, 3), FLCL(0, 3), WALL(1),
-	WALL(1), FLCL(0, 3), FLCL(0, 3), FLCL(0, 3), FLCL(0, 3), FLCL(0, 3), FLCL(0, 3), WALL(1),
+	WALL(1), WALL(1)      , WALL(1)      , WALL(1)      , WALL(1)      , WALL(1)      , WALL(1)      , WALL(1),
+	WALL(1), FLCL(0, 0, 3), FLCL(0, 0, 3), FLCL(0, 0, 3), FLCL(0, 0, 3), FLCL(0, 0, 3), FLCL(0, 0, 3), WALL(1),
+	WALL(1), FLCL(0, 0, 3), FLCL(0, 0, 3), WALL(1)   , FLCL(0, 0, 3), WALL(1)   , FLCL(0, 0, 3), WALL(1),
+	WALL(1), FLCL(0, 0, 3), FLCL(0, 0, 3), WALL(1)   , WALL(1)   , WALL(1)   , FLCL(0, 0, 3), WALL(1),
+	WALL(1), FLCL(0, 0, 3), FLCL(0, 0, 3), FLCL(0, 0, 3), FLCL(0, 0, 3), FLCL(0, 0, 3), FLCL(0, 0, 3), WALL(1),
+	WALL(1), FLCL(0, 0, 3), FLCL(0, 0, 3), FLCL(0, 0, 3), WALL(1)   , FLCL(0, 0, 3), FLCL(0, 0, 3), WALL(1),
+	WALL(1), FLCL(0, 0, 3), FLCL(0, 0, 3), FLCL(0, 0, 3), FLCL(0, 0, 3), FLCL(0, 0, 3), FLCL(0, 0, 3), WALL(1),
 	WALL(1), WALL(1)   , WALL(1)   , WALL(1)   , WALL(1)   , WALL(1)   , WALL(1)   , WALL(1),
 };
 
@@ -115,6 +119,8 @@ void RC_Engine_init(int w, int h){
 	engine->fbuffer_texture = texture;
 
 	map_init(&engine->map, temp_map, 8, 8, &engine->viewports[MAP_VIEWPORT]);
+	RC_Map_set_sprite(&engine->map, 100, 100, BARREL_SPRITE);
+
 	player_init(&engine->player, PROJ_PLANE_W);
 
 	engine->textures[FLOOR_TEXT] = RC_Texture_load(engine->renderer,
@@ -124,12 +130,18 @@ void RC_Engine_init(int w, int h){
 														"./assets/space_wall.png");
 	engine->textures[WOLF_WALL_TEXT] = RC_Texture_load(engine->renderer,
 														"./assets/wall.png");
-
 	engine->textures[CEILING_WALL_TEXT] = engine->textures[WOLF_WALL_TEXT];
+	engine->textures[BARREL_SPRITE] = RC_Texture_load(engine->renderer, "./assets/barrel.png");
+	//SDL_Surface * s = 
+	//SDL_SetColorKey(s, SDL_TRUE, 0x980088ff);
 
 	RC_Core_init(PROJ_PLANE_W, PROJ_PLANE_H, engine->player.fov, engine->textures, TEXTURES_NUM);
-
 	initialized = true;
+
+
+	sprite_texture = SDL_CreateTexture(engine->renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_STREAMING, PROJ_PLANE_W, PROJ_PLANE_H);
+	RC_DIE(sprite_texture == NULL);
+	SDL_SetTextureBlendMode(sprite_texture, SDL_BLENDMODE_BLEND);
 }
 
 void RC_Engine_quit(){
@@ -222,7 +234,7 @@ static void RC_Engine_draw(){
 	RC_DIE(SDL_RenderSetViewport(engine->renderer,&engine->viewports[SCENE_VIEWPORT]) < 0);
 	RC_DIE(SDL_RenderCopy(engine->renderer, engine->fbuffer_texture, NULL, NULL) < 0);
 
-	//draw the rays
+//	draw the rays
 	RC_Engine_set_color(0xffffffff);
 
 	RC_DIE(SDL_RenderSetViewport(engine->renderer, &engine->viewports[MAP_VIEWPORT]) < 0);
@@ -255,6 +267,11 @@ static void RC_Engine_draw(){
 		}
 	}
 
+
+	RC_DIE(SDL_RenderSetViewport(engine->renderer, &engine->viewports[SCENE_VIEWPORT]) < 0);
+	RC_Core_render_sprites(engine->renderer, &engine->map, &engine->player);
+	RC_DIE(SDL_UpdateTexture(sprite_texture, NULL, sprite_pixels, 4 * PROJ_PLANE_W) < 0);
+	RC_DIE(SDL_RenderCopy(engine->renderer, sprite_texture, NULL, NULL) < 0);
 }
 
 void RC_Engine_run(){

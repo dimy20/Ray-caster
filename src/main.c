@@ -8,8 +8,8 @@
 #include "engine.h"
 #include "map.h"
 
-#define W 1024
-#define H 728
+#define W 1280
+#define H 720
 
 int main(){
 	RC_Engine_init(W, H);

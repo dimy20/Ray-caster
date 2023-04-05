@@ -9,8 +9,8 @@
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_image.h>
 
-#define PROJ_PLANE_W 600
-#define PROJ_PLANE_H 400
+#define PROJ_PLANE_W 800
+#define PROJ_PLANE_H 600
 
 #define UNIMPLEMENTED do{ \
 	fprintf(stderr, "UNIMPLEMENTED %s:%d\n", __FILE__, __LINE__); \

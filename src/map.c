@@ -10,6 +10,7 @@ static uint32_t colors[4] = {BLACK, RED, GREEN, BLUE};
 void map_init(Map * map, uint32_t * values, size_t w, size_t h, const SDL_Rect * viewport){
 	assert(map != NULL);
 	assert(values != NULL);
+	assert(w <= MAP_MAX_SIZE && h <= MAP_MAX_SIZE);
 
 	map->values = malloc(sizeof(uint32_t) * (w * h));
 
@@ -22,6 +23,9 @@ void map_init(Map * map, uint32_t * values, size_t w, size_t h, const SDL_Rect *
 	map->viewport = viewport;
 	memcpy(map->values, values, sizeof(uint32_t) * (w * h));
 	map->colors = colors;
+
+	memset(map->sprites, 0, sizeof(RC_Sprite));
+	map->sprites_len = 0;
 }
 
 void world_2_screen(const Map * map, const vec2f * world_pos, vec2i * screen){
@@ -81,9 +85,28 @@ void map_draw(const Map * map, SDL_Renderer * renderer, size_t window_w, size_t 
 						   (int)window_w - 1,
 						   (int)screen_y) < 0);
 	}
+
+
+	RC_Engine_set_color(0x00ff00ff);
+	for(int i = 0; i < map->sprites_len; i++){
+		const vec2f * p = &map->sprites[i].position;
+		vec2i screen;
+		world_2_screen(map, p, &screen);
+		SDL_Rect r = {screen.x, screen.y, 5, 5};
+		SDL_RenderFillRect(renderer, &r);
+	}
 }
 
 void map_quit(Map * map){
 	assert(map != NULL);
 	free(map->values);
+}
+
+void RC_Map_set_sprite(Map * map, int x, int y, int texture_id){
+	if(map->sprites_len < MAX_SPRITES){
+		RC_Sprite * sprite = &map->sprites[map->sprites_len++];
+		sprite->position.x = x;
+		sprite->position.y = y;
+		sprite->texture_id = texture_id;
+	}
 }

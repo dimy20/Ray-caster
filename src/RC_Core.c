@@ -1,9 +1,17 @@
 #include "RC_Core.h"
 
 #define RCDEF inline static
+#define COLUMN_IN_BOUNDS(x) ((x) >= 0 && (x) < rctx->proj_plane_w)
+#define ROW_IN_BOUNDS(y) ((y) >= 0 && (y) < rctx->proj_plane_h)
+#define COLOR_KEY 0x980088ff
+
+static bool visited_cell[MAP_MAX_SIZE][MAP_MAX_SIZE];
 
 static Rc_context * rctx;
 static bool initted = false;
+extern SDL_Texture * sprite_texture;
+
+uint32_t sprite_pixels[PROJ_PLANE_W * PROJ_PLANE_H];
 
 RCDEF void RC_Core_clear_buffer(){
 	size_t dim = rctx->proj_plane_w * rctx->proj_plane_h;
@@ -36,6 +44,7 @@ void RC_Core_init(size_t proj_plane_w, size_t proj_plane_h, double fov, SDL_Surf
 	rctx->proj_plane_h = proj_plane_h;
 	rctx->proj_plane_center = proj_plane_h / 2;
 
+
 	rctx->hits = malloc(sizeof(vec2f) * rctx->proj_plane_w);
 	memset(rctx->hits, 0, sizeof(vec2f) * rctx->proj_plane_w);
 
@@ -50,7 +59,6 @@ void RC_Core_init(size_t proj_plane_w, size_t proj_plane_h, double fov, SDL_Surf
 	if(textures != NULL){
 		rctx->textures = textures;
 		rctx->textures_len = textures_len;
-
 	}
 }
 
@@ -113,6 +121,7 @@ static double RC_Core_cast_horizontal_intercept(const double ray_angle,
 				hit = true;
 				distance = RC_Core_perpendicular_distance(player->viewing_angle, &player->position, h_hit);
 			}else{
+				visited_cell[y][x] = true;
 				h_hit->x += delta_step_x;
 				h_hit->y += (double)step_y;
 			}
@@ -165,6 +174,7 @@ static double RC_Core_cast_vertical_intercept(double ray_angle, const Player * p
 				distance = RC_Core_perpendicular_distance(player->viewing_angle, &player->position, v_hit);
 				hit = true;
 			}else{
+				visited_cell[y][x] = true;
 				v_hit->x += (double)step_x;
 				v_hit->y += delta_step_y;
 			}
@@ -198,10 +208,11 @@ void RC_Core_draw_textmapped_wall_slice(int texture_x, int slice_height, int scr
 	int texture_y;
 
 	size_t texture_size = texture->w;
+	int start_y = rctx->proj_plane_center - (slice_height / 2);
 
 	for(int i = 0; i < slice_height; i++){
 		// location of this texture pixel on screen?
-		pixel_y = i + (rctx->proj_plane_center - slice_height / 2);
+		pixel_y = i + start_y;
 		if(pixel_y >= 0 && pixel_y < rctx->proj_plane_h){
 
 			/*Makes the following mapping of values from [0, size] -> [0, column_height]
@@ -341,6 +352,107 @@ inline static void RC_Core_draw_celing_slice(const Player * player, const Map * 
 	}
 }
 
+//void RC_Core_sort_sprites(int * sprite_index, size_t len){
+//	assert(sprite_index != NULL);
+//
+//	for(int i = 0; i < len; i++){
+//		for(int j = 0; j < len - i - 1; j++){
+//			if(rctx->sprite_distance[j] > rctx->sprite_distance[j + 1]){
+//				int tmp = sprite_index[j];
+//				sprite_index[j] = sprite_index[j + 1];
+//				sprite_index[j + 1] = tmp;
+//			}
+//		}
+//	}
+//}
+
+#define FIRST_QUADRANT(a) ((a) >= 0.0 && (a) <= 90.0)
+#define FOURTH_QUADRANT(a) ((a) >= 270.0 && a <= 360.0)
+
+void RC_Core_sprite_world_2_screen(const RC_Sprite * sprite,
+								   vec2i * screen_coords,
+								   const Player * player,
+								   int columns_per_angle){
+	vec2f sprite_dir;
+	sprite_dir.x = sprite->position.x - player->position.x;
+	sprite_dir.y = sprite->position.y - player->position.y;
+
+	double sprite_angle = atan2(-sprite_dir.y, sprite_dir.x) * (180.0f / M_PI);
+
+	if(sprite_angle > 360.0) sprite_angle -= 360.0;
+	if(sprite_angle < 0.0) sprite_angle += 360.0;
+
+	//printf("%f\n", sprite_angle);
+
+	/* This is the angle between the sprite directio and the left most ray angle,
+	 * we need this angle to find the sprite's screen x center.*/
+	double q = (player->viewing_angle + (player->fov * 0.5f)) - sprite_angle;
+
+	if(FIRST_QUADRANT(player->viewing_angle) && FOURTH_QUADRANT(sprite_angle))
+		q += 360.0;
+	if(FOURTH_QUADRANT(player->viewing_angle) && FIRST_QUADRANT(sprite_angle))
+		q -= 360.0;
+
+	screen_coords->x = q * columns_per_angle;
+	screen_coords->y = rctx->proj_plane_center; // this is constant.
+}
+
+inline static void RC_Core_sprite_screen_dimensions(int index, int screen_x, SDL_Rect * rect, const Player * player, const Map * map){
+	const RC_Sprite * sprite = &map->sprites[index];
+
+	double dx = player->position.x - sprite->position.x;
+	double dy = player->position.y - sprite->position.y;
+	double dist_to_sprite = sqrt((dx * dx) + (dy * dy));
+
+	double A = (double)map->cell_size / dist_to_sprite;
+	int sprite_h = (int)(player->dist_from_proj_plane * A);
+
+	rect->w = sprite_h;
+	rect->h = sprite_h;
+	rect->y = rctx->proj_plane_center - (sprite_h >> 1);
+	rect->x = screen_x - (sprite_h >> 1);
+}
+
+void RC_Core_render_sprites(SDL_Renderer * renderer, const Map * map, const Player * player){
+	const RC_Sprite * sprite = &map->sprites[0];
+	vec2i screen_coords;
+	int columns_per_angle = rctx->proj_plane_w / player->fov;
+
+	RC_Core_sprite_world_2_screen(sprite, &screen_coords, player, columns_per_angle);
+	SDL_Rect sprite_dim;
+	RC_Core_sprite_screen_dimensions(0, screen_coords.x, &sprite_dim, player, map);
+
+	int start_x = sprite_dim.x;
+	int start_y = sprite_dim.y;
+	int sprite_w = sprite_dim.w;
+	int sprite_h = sprite_dim.h;
+
+	const double screen_2_texture = ((double)map->cell_size / (double)sprite_w);
+	memset(sprite_pixels, 0, sizeof(uint32_t) * (PROJ_PLANE_W * PROJ_PLANE_H));
+
+	for(int x = 0; x < sprite_w; x++){
+		int screen_x = x + start_x;
+
+		if((COLUMN_IN_BOUNDS(screen_x))){
+			for(int y = 0; y < sprite_h; y++){
+				int screen_y = start_y + y;
+				if(!ROW_IN_BOUNDS(screen_y)) continue;
+				// TODO: may change to x << 6
+				int texture_x = x * screen_2_texture;
+				int texture_y = y * screen_2_texture;
+
+				SDL_Surface * surf = rctx->textures[sprite->texture_id];
+				uint32_t pixel_color = ((uint32_t *)surf->pixels)[texture_y * surf->w + texture_x];
+				if(pixel_color != COLOR_KEY){
+					sprite_pixels[screen_y * PROJ_PLANE_W + screen_x] = pixel_color;
+				}
+				//printf("%d, %d\n", texture_x, texture_y);
+			}
+		}
+	}
+
+}
+
 const uint32_t * RC_Core_render(const Player * player, const Map * map, uint32_t flags){ 
 	assert(initted);
 	assert(player != NULL);
@@ -351,6 +463,7 @@ const uint32_t * RC_Core_render(const Player * player, const Map * map, uint32_t
 
 	RC_Core_clear_buffer();
 	memset(rctx->hits, 0, sizeof(vec2f) * rctx->proj_plane_w);
+	memset(visited_cell, 0, sizeof(bool) * MAP_MAX_SIZE * MAP_MAX_SIZE);
 
 	vec2i map_coords_h, map_coords_v;
 	vec2f h_hit, v_hit;
