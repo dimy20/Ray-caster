@@ -1,13 +1,11 @@
 #pragma once
 
-#include <string>
 #include <unordered_map>
-#include <SDL2/SDL.h>
-#include <SDL2/SDL_image.h>
+#include <string>
 
 #include "utils.h"
 #include "player.h"
-
+#include "Resources.h"
 
 #define KEYBOARD_MAX_KEYS 350
 namespace rc{
@@ -19,19 +17,6 @@ namespace rc{
 		BARREL_SPRITE,
 
 		TEXTURES_NUM,
-	};
-
-	struct Resources{
-		static Resources * instance(){
-			static Resources r;
-			return &r;
-		};
-
-		SDL_Surface * get_surface(int id) { return m_surfaces[id]; };
-		void add_surface(int id, SDL_Surface * s) { m_surfaces[id] = s; }
-
-		private:
-			std::unordered_map<int, SDL_Surface *> m_surfaces;
 	};
 
 	struct Engine{
