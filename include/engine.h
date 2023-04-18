@@ -9,25 +9,12 @@
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_image.h>
 
+
+
 #define PROJ_PLANE_W 800
 #define PROJ_PLANE_H 600
 
-#define UNIMPLEMENTED do{ \
-	fprintf(stderr, "UNIMPLEMENTED %s:%d\n", __FILE__, __LINE__); \
-	exit(1); \
-}while(0);
 
-#define DIE(s) do{ \
-	fprintf(stderr, "Error: %s at %s:%d\n", s, __FILE__, __LINE__); \
-	exit(1);										\
-}while(0);
-
-#define RC_DIE(v) do{ \
-	if(v){											\
-		fprintf(stderr, "Error: %s at %s:%d\n", SDL_GetError(), __FILE__, __LINE__); \
-		exit(1);										\
-	}													\
-}while(0);
 #define KEYBOARD_MAX_KEYS 350
 
 typedef enum{

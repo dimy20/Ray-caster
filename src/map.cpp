@@ -1,4 +1,6 @@
 #include "map.h"
+#include "utils.h"
+#include "RC_Engine.h"
 
 #define BLACK 0x00000000
 #define RED 0xff0000ff
@@ -12,7 +14,7 @@ void map_init(Map * map, uint32_t * values, size_t w, size_t h, const SDL_Rect *
 	assert(values != NULL);
 	assert(w <= MAP_MAX_SIZE && h <= MAP_MAX_SIZE);
 
-	map->values = malloc(sizeof(uint32_t) * (w * h));
+	map->values = static_cast<uint32_t *>(malloc(sizeof(uint32_t) * (w * h)));
 
 	assert(map->values != NULL);
 
@@ -40,16 +42,15 @@ void world_2_screen(const Map * map, const vec2f * world_pos, vec2i * screen){
 }
 
 // void map_draw(const Map * map, Platform * platform)
-void map_draw(const Map * map, SDL_Renderer * renderer, size_t window_w, size_t window_h){
+void map_draw(const Map * map, rc::Engine * engine, size_t window_w, size_t window_h){
 	assert(map != NULL);
-	assert(renderer != NULL);
 
 	// map's cell size in screen space
 	size_t cell_w_screen =  window_w / map->w;
 	size_t cell_h_screen =  window_h / map->h;
 
-	for(size_t y = 0; y < map->h; ++y){
-		for(size_t x = 0; x < map->w; ++x){
+	for(int y = 0; y < map->h; ++y){
+		for(int x = 0; x < map->w; ++x){
 			size_t screen_x = x * cell_w_screen;
 			size_t screen_y = y * cell_h_screen;
 
@@ -61,39 +62,39 @@ void map_draw(const Map * map, SDL_Renderer * renderer, size_t window_w, size_t 
 			uint32_t cell_data = map->values[y * map->w + x];
 			uint32_t color = colors[cell_data & WALL_BIT ? cell_data >> 8 : 0];
 
-			RC_Engine_set_color(color);
-			RC_DIE(SDL_RenderFillRect(renderer, &rect) < 0);
+			engine->set_draw_color(color);
+			RC_DIE(SDL_RenderFillRect(engine->renderer(), &rect) < 0, SDL_GetError());
 		}
 	}
 
-	RC_Engine_set_color(0xffffffff);
+	engine->set_draw_color(0xffffffff);
 	// draw the grid
-	for(size_t x = 0; x < map->w; ++x){
+	for(int x = 0; x < map->w; ++x){
 		size_t screen_x = (x * cell_w_screen);
-		RC_DIE(SDL_RenderDrawLine(renderer,
+		RC_DIE(SDL_RenderDrawLine(engine->renderer(),
 						   (int)screen_x,
 						   0,
 						   (int)screen_x,
-						   (int)window_h - 1) < 0);
+						   (int)window_h - 1) < 0, SDL_GetError());
 	}
 
-	for(size_t y = 0; y < map->h; ++y){
+	for(int y = 0; y < map->h; ++y){
 		size_t screen_y = y * cell_h_screen;
-		RC_DIE(SDL_RenderDrawLine(renderer, 
+		RC_DIE(SDL_RenderDrawLine(engine->renderer(), 
 					       0,
 						   (int)screen_y,
 						   (int)window_w - 1,
-						   (int)screen_y) < 0);
+						   (int)screen_y) < 0, SDL_GetError());
 	}
 
 
-	RC_Engine_set_color(0x00ff00ff);
+	engine->set_draw_color(0x00ff00ff);
 	for(int i = 0; i < map->sprites_len; i++){
 		const vec2f * p = &map->sprites[i].position;
 		vec2i screen;
 		world_2_screen(map, p, &screen);
 		SDL_Rect r = {screen.x, screen.y, 5, 5};
-		SDL_RenderFillRect(renderer, &r);
+		SDL_RenderFillRect(engine->renderer(), &r);
 	}
 }
 

@@ -35,7 +35,7 @@ void RC_Core_init(size_t proj_plane_w, size_t proj_plane_h, double fov, SDL_Surf
 		//TODO: Log error
 		return;
 	}
-	rctx = malloc(sizeof(Rc_context));
+	rctx = static_cast<Rc_context *>(malloc(sizeof(Rc_context)));
 	assert(rctx != NULL);
 
 	memset(rctx, 0, sizeof(Rc_context));
@@ -45,11 +45,11 @@ void RC_Core_init(size_t proj_plane_w, size_t proj_plane_h, double fov, SDL_Surf
 	rctx->proj_plane_center = proj_plane_h / 2;
 
 
-	rctx->hits = malloc(sizeof(vec2f) * rctx->proj_plane_w);
+	rctx->hits = static_cast<vec2f *>(malloc(sizeof(vec2f) * rctx->proj_plane_w));
 	memset(rctx->hits, 0, sizeof(vec2f) * rctx->proj_plane_w);
 
 	size_t dim = rctx->proj_plane_w * rctx->proj_plane_h;
-	rctx->fbuffer = malloc(sizeof(uint32_t) * dim);
+	rctx->fbuffer = static_cast<uint32_t *>(malloc(sizeof(uint32_t) * dim));
 	RC_Core_clear_buffer();
 
 	assert(rctx->fbuffer != NULL);
@@ -469,7 +469,7 @@ const uint32_t * RC_Core_render(const Player * player, const Map * map, uint32_t
 	vec2f h_hit, v_hit;
 
 	/*Trace a ray for every colum*/
-	for(size_t x = 0; x < rctx->proj_plane_w; x++){
+	for(int x = 0; x < rctx->proj_plane_w; x++){
 		if(ray_angle < 0) ray_angle += 360.0f;
 
 		double h_dist = RC_Core_cast_horizontal_intercept(ray_angle, player, map, &h_hit, &map_coords_h);
@@ -503,7 +503,7 @@ const uint32_t * RC_Core_render(const Player * player, const Map * map, uint32_t
 
 		if(flags & DRAW_TEXT_MAPPED_WALLS){
 			assert(rctx->textures != NULL && rctx->textures_len > 0);
-			if(cell_index < rctx->textures_len){
+			if(cell_index < static_cast<uint32_t>(rctx->textures_len)){
 				RC_Core_draw_textmapped_wall_slice(texture_x, slice_height, x, rctx->textures[cell_index]);
 			}
 		}

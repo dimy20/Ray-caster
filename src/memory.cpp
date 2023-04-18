@@ -1,14 +1,14 @@
 #include "memory.h"
 
 static Block * RC_create_block(size_t element_size){
-	Block * block = malloc(sizeof(Block));
+	Block * block = static_cast<Block *>(malloc(sizeof(Block)));
 	assert(block != NULL);
 	block->elem_cap = DEFAULT_BLOCK_CAP;
 	block->count = 0;
 	block->next = NULL;
 
 	size_t size = element_size * block->elem_cap;
-	block->buffer = malloc(sizeof(uint8_t) * size);
+	block->buffer = static_cast<uint8_t *>(malloc(sizeof(uint8_t) * size));
 	assert(block != NULL);
 
 	memset(block->buffer, 0, sizeof(uint8_t) * size);
@@ -23,7 +23,7 @@ static void RC_destroy_block(Block * block){
 }
 
 RC_MemPool * RC_create_mempool(size_t cap, size_t element_size){
-	RC_MemPool * pool = malloc(sizeof(RC_MemPool));
+	RC_MemPool * pool = static_cast<RC_MemPool *>(malloc(sizeof(RC_MemPool)));
 
 	assert(pool != NULL);
 

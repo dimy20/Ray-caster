@@ -37,17 +37,21 @@ typedef struct{
 
 typedef struct{
 	uint32_t * values;
-	size_t w;
-	size_t h;
+	int w;
+	int h;
 	size_t cell_size;
 	const SDL_Rect * viewport;
 	const uint32_t * colors;
 	RC_Sprite sprites[MAX_SPRITES];
-	size_t sprites_len;
+	int sprites_len;
 }Map;
+
+namespace rc{
+	struct Engine;
+};
 
 void map_init(Map * map, uint32_t * values, size_t w, size_t h, const SDL_Rect * viewport);
 void map_quit(Map * map);
-void map_draw(const Map * map, SDL_Renderer * renderer, size_t window_w, size_t window_h);
+void map_draw(const Map * map, rc::Engine * engine, size_t window_w, size_t window_h);
 void world_2_screen(const Map * map, const vec2f * world_pos, vec2i * screen);
 void RC_Map_set_sprite(Map * map, int x, int y, int texture_id);

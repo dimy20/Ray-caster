@@ -9,6 +9,10 @@
 #define PLAYER_HEIGHT 32
 #define PLAYER_VIEWING_ANGLE 45
 
+namespace rc{
+	struct Engine;
+}
+
 typedef struct{
 	double dist_from_proj_plane;
 	int height;
@@ -26,4 +30,4 @@ void player_draw(const Player * player,
 
 void player_init(Player * player, size_t projection_plane_w);
 
-void player_update(Player * player);
+void player_update(Player * player, const rc::Engine * engine);

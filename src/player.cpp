@@ -1,6 +1,7 @@
 #include "player.h"
-#include "engine.h"
 #include "rc_math.h"
+
+#include "RC_Engine.h"
 
 void player_draw(const Player * player, const Map * map, SDL_Renderer * renderer){
 	vec2i screen_position;
@@ -10,7 +11,7 @@ void player_draw(const Player * player, const Map * map, SDL_Renderer * renderer
 					 screen_position.y,
 					 10, 10};
 
-	RC_Engine_set_color(0xffffffff);
+	SDL_SetRenderDrawColor(renderer, 0xff, 0xff, 0xff, 0xff); // remove this from here?
 	SDL_RenderFillRect(renderer, &rect);
 }
 
@@ -35,14 +36,14 @@ double lerp(double a, double b, double t){
 	return a + (b - a) * t;
 }
 
-void player_update(Player * player){
-	double delta_time = RC_Engine_deltatime();
+void player_update(Player * player, const rc::Engine * engine){
+	double delta_time = engine->time.delta_time;
 
-	bool pressed_w = RC_Engine_test_inputkey(SDL_SCANCODE_W);
-	bool pressed_s = RC_Engine_test_inputkey(SDL_SCANCODE_S);
+	bool pressed_w = engine->input.keyboard[SDL_SCANCODE_W];
+	bool pressed_s = engine->input.keyboard[SDL_SCANCODE_S];
 
-	bool pressed_d = RC_Engine_test_inputkey(SDL_SCANCODE_D);
-	bool pressed_a = RC_Engine_test_inputkey(SDL_SCANCODE_A);
+	bool pressed_d = engine->input.keyboard[SDL_SCANCODE_D];
+	bool pressed_a = engine->input.keyboard[SDL_SCANCODE_A];
 
 	if(pressed_s || pressed_w){
 		vec2f dir;

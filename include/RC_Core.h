@@ -20,14 +20,14 @@ typedef enum{
 }RC_RenderFlag;
 
 typedef struct{
-	size_t proj_plane_w;
-	size_t proj_plane_h;
-	size_t proj_plane_center;
+	int proj_plane_w;
+	int proj_plane_h;
+	int proj_plane_center;
 	double angle_step;
 	vec2f * hits;
 	uint32_t * fbuffer;
 	SDL_Surface ** textures;
-	size_t textures_len;
+	int textures_len;
 	double * sprite_distance;
 }Rc_context;
 

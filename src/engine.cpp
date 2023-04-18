@@ -20,31 +20,31 @@ extern uint32_t sprite_pixels[PROJ_PLANE_W * PROJ_PLANE_H];
 
 typedef struct{
 	/* Raycasting*/
-	Player player;
-	Map map;
-	SDL_Texture * fbuffer_texture;
+	//Player player;
+	//Map map;
+	//SDL_Texture * fbuffer_texture;
 	/* INPUT */
-	uint8_t keyboard[KEYBOARD_MAX_KEYS];
+	//uint8_t keyboard[KEYBOARD_MAX_KEYS];
 
 	/* SDL STUFF 
 	 * TODO: maybe this should live on a lower layer, a platform layer??*/
-	SDL_Renderer * renderer;
+	//SDL_Renderer * renderer;
 
 	/* STATE */
-	bool running;
+	//bool running;
 
 	/* Viewports */
-	SDL_Rect viewports[VIEWPORTS_NUM];
+	//SDL_Rect viewports[VIEWPORTS_NUM];
 
 	/*Window information*/
-	SDL_Window * window;
-	int w, h;
+	//SDL_Window * window;
+	//int w, h;
 
-	SDL_Surface * textures[TEXTURES_NUM];
+	//SDL_Surface * textures[TEXTURES_NUM];
 
 	/* TIME */
-	double delta_time;
-	uint32_t old_time;
+	//double delta_time;
+	//uint32_t old_time;
 }Engine;
 
 static bool initialized = false;
@@ -80,68 +80,68 @@ static SDL_Surface * RC_Texture_load(SDL_Renderer * renderer, const char * filen
 
 void RC_Engine_init(int w, int h){
 
-	assert(!initialized);
+	//assert(!initialized);
 
-	SDL_Window * window;
-	SDL_Renderer * renderer;
+	//SDL_Window * window;
+	//SDL_Renderer * renderer;
 
-	RC_DIE(SDL_Init(SDL_INIT_VIDEO) < 0);
-	RC_DIE((window = SDL_CreateWindow("rc", 0, 0, w, h, 0)) == NULL);
-	RC_DIE((renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED)) == NULL);
-	if(!(IMG_Init(IMG_INIT_PNG) & IMG_INIT_PNG)) DIE(IMG_GetError());
+	//RC_DIE(SDL_Init(SDL_INIT_VIDEO) < 0);
+	//RC_DIE((window = SDL_CreateWindow("rc", 0, 0, w, h, 0)) == NULL);
+	//RC_DIE((renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED)) == NULL);
+	//if(!(IMG_Init(IMG_INIT_PNG) & IMG_INIT_PNG)) DIE(IMG_GetError());
 
-	engine = malloc(sizeof(Engine));
-	assert(engine != NULL);
-	memset(engine, 0, sizeof(Engine));
+	//engine = static_cast<Engine *>(malloc(sizeof(Engine)));
+	//assert(engine != NULL);
+	//memset(engine, 0, sizeof(Engine));
 
-	engine->window = window;
-	engine->renderer = renderer;
-	memset(engine->keyboard, 0, KEYBOARD_MAX_KEYS);
+	//engine->window = window;
+	//engine->renderer = renderer;
+	//memset(engine->keyboard, 0, KEYBOARD_MAX_KEYS);
 
-	engine->running = true;
-	engine->w = w;
-	engine->h = h;
-	engine->old_time = SDL_GetTicks();
+//	engine->running = true;
+//	engine->w = w;
+//	engine->h = h;
+//	engine->old_time = SDL_GetTicks();
 	/* Viewports */
-	memset(engine->viewports, 0, sizeof(SDL_Rect) * VIEWPORTS_NUM);
-	RC_Engine_init_viewport(&engine->viewports[MAP_VIEWPORT], 0, 0, 200, 200);
-	RC_Engine_init_viewport(&engine->viewports[SCENE_VIEWPORT], 0, 0, w, h);
+	//memset(engine->viewports, 0, sizeof(SDL_Rect) * VIEWPORTS_NUM);
+	//RC_Engine_init_viewport(&engine->viewports[MAP_VIEWPORT], 0, 0, 200, 200);
+	//RC_Engine_init_viewport(&engine->viewports[SCENE_VIEWPORT], 0, 0, w, h);
 
 	/*This texture will be updated with the frame buffer that is drawn by
 	 * the rc core algorithm each frame*/
-	SDL_Texture * texture;
-	RC_DIE((texture = SDL_CreateTexture(engine->renderer,
-										SDL_PIXELFORMAT_RGBA8888,
-										SDL_TEXTUREACCESS_STREAMING,
-										PROJ_PLANE_W,
-										PROJ_PLANE_H)) == NULL);
+//	SDL_Texture * texture;
+//	RC_DIE((texture = SDL_CreateTexture(engine->renderer,
+//										SDL_PIXELFORMAT_RGBA8888,
+//										SDL_TEXTUREACCESS_STREAMING,
+//										PROJ_PLANE_W,
+//										PROJ_PLANE_H)) == NULL);
+//
+//	engine->fbuffer_texture = texture;
 
-	engine->fbuffer_texture = texture;
+	//map_init(&engine->map, temp_map, 8, 8, &engine->viewports[MAP_VIEWPORT]);
+	//RC_Map_set_sprite(&engine->map, 100, 100, BARREL_SPRITE);
 
-	map_init(&engine->map, temp_map, 8, 8, &engine->viewports[MAP_VIEWPORT]);
-	RC_Map_set_sprite(&engine->map, 100, 100, BARREL_SPRITE);
+	//player_init(&engine->player, PROJ_PLANE_W);
 
-	player_init(&engine->player, PROJ_PLANE_W);
-
-	engine->textures[FLOOR_TEXT] = RC_Texture_load(engine->renderer,
-														"./assets/floor.png");
-
-	engine->textures[SPACE_WALL_TEXT] = RC_Texture_load(engine->renderer,
-														"./assets/space_wall.png");
-	engine->textures[WOLF_WALL_TEXT] = RC_Texture_load(engine->renderer,
-														"./assets/wall.png");
-	engine->textures[CEILING_WALL_TEXT] = engine->textures[WOLF_WALL_TEXT];
-	engine->textures[BARREL_SPRITE] = RC_Texture_load(engine->renderer, "./assets/barrel.png");
+//	engine->textures[FLOOR_TEXT] = RC_Texture_load(engine->renderer,
+//														"./assets/floor.png");
+//
+//	engine->textures[SPACE_WALL_TEXT] = RC_Texture_load(engine->renderer,
+//														"./assets/space_wall.png");
+//	engine->textures[WOLF_WALL_TEXT] = RC_Texture_load(engine->renderer,
+//														"./assets/wall.png");
+//	engine->textures[CEILING_WALL_TEXT] = engine->textures[WOLF_WALL_TEXT];
+	//engine->textures[BARREL_SPRITE] = RC_Texture_load(engine->renderer, "./assets/barrel.png");
 	//SDL_Surface * s = 
 	//SDL_SetColorKey(s, SDL_TRUE, 0x980088ff);
 
-	RC_Core_init(PROJ_PLANE_W, PROJ_PLANE_H, engine->player.fov, engine->textures, TEXTURES_NUM);
-	initialized = true;
-
-
-	sprite_texture = SDL_CreateTexture(engine->renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_STREAMING, PROJ_PLANE_W, PROJ_PLANE_H);
-	RC_DIE(sprite_texture == NULL);
-	SDL_SetTextureBlendMode(sprite_texture, SDL_BLENDMODE_BLEND);
+//	RC_Core_init(PROJ_PLANE_W, PROJ_PLANE_H, engine->player.fov, engine->textures, TEXTURES_NUM);
+//	initialized = true;
+//
+//
+//	sprite_texture = SDL_CreateTexture(engine->renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_STREAMING, PROJ_PLANE_W, PROJ_PLANE_H);
+//	RC_DIE(sprite_texture == NULL);
+//	SDL_SetTextureBlendMode(sprite_texture, SDL_BLENDMODE_BLEND);
 }
 
 void RC_Engine_quit(){

@@ -4,15 +4,17 @@
 #include <assert.h>
 #include <string.h>
 #include <errno.h>
+#include <vector>
 
-#include "engine.h"
-#include "map.h"
+#include "RC_Engine.h"
 
 #define W 1280
-#define H 720
+#define H 768
 
 int main(){
-	RC_Engine_init(W, H);
-	RC_Engine_run();
-	RC_Engine_quit();
+	rc::Engine engine(W, H);
+
+	//RC_Engine_init(W, H);;
+	//RC_Engine_run();
+	//RC_Engine_quit();
 }
