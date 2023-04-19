@@ -20,7 +20,7 @@ static const double target_time_per_frame = 1.0 / TARGET_FPS;
 SDL_Texture * sprite_texture;
 extern uint32_t sprite_pixels[PROJ_PLANE_W * PROJ_PLANE_H];
 
-rc::Engine::Engine(int w, int h){
+rc::Engine::Engine(int w, int h) : Core(PROJ_PLANE_W, PROJ_PLANE_H, 60.0){
 	init(w, h);
 }
 
@@ -36,11 +36,11 @@ void rc::Engine::init_viewports(){
 }
 
 void rc::Engine::load_textures(){
-	resources->add_surface(FLOOR_TEXT, IMG_Load("./assets/floor.png"));
-	resources->add_surface(SPACE_WALL_TEXT, IMG_Load("./assets/space_wall.png"));
-	resources->add_surface(WOLF_WALL_TEXT, IMG_Load("./assets/wall.png"));
-	resources->add_surface(CEILING_TEXT, resources->get_surface(WOLF_WALL_TEXT));
-	resources->add_surface(BARREL_SPRITE, IMG_Load("./assets/barrel.png"));
+	m_resources->add_surface(FLOOR_TEXT, load_surface_RGBA(m_renderer, "./assets/floor.png"));
+	m_resources->add_surface(SPACE_WALL_TEXT, load_surface_RGBA(m_renderer, "./assets/space_wall.png"));
+	m_resources->add_surface(WOLF_WALL_TEXT, load_surface_RGBA(m_renderer, "./assets/wall.png"));
+	m_resources->add_surface(CEILING_TEXT, m_resources->get_surface(WOLF_WALL_TEXT));
+	m_resources->add_surface(BARREL_SPRITE, load_surface_RGBA(m_renderer, "./assets/barrel.png"));
 }
 
 void rc::Engine::init(int w, int h){
@@ -79,8 +79,6 @@ void rc::Engine::init(int w, int h){
 	m_window = window;
 	m_renderer = renderer;
 	m_running = true;
-
-	resources = rc::Resources::instance();
 
 	init_viewports();
 	load_textures();
@@ -139,7 +137,7 @@ void rc::Engine::do_input(){
 }
 
 void rc::Engine::prepare_scene(){
-	RC_DIE(SDL_SetRenderDrawColor(m_renderer, 96, 128, 255, 255) < 0, SDL_GetError());
+	RC_DIE(SDL_SetRenderDrawColor(m_renderer, 0, 0, 0, 0) < 0, SDL_GetError());
 	RC_DIE(SDL_RenderClear(m_renderer) < 0, SDL_GetError());
 }
 
@@ -223,7 +221,7 @@ void rc::unpack_color(uint32_t color, uint8_t& r, uint8_t& g, uint8_t& b, uint8_
 	r = static_cast<uint8_t>((color >> 24) & 0xff);
 	g = static_cast<uint8_t>((color >> 16) & 0xff);
 	b = static_cast<uint8_t>((color >> 8) & 0xff);
-	b = static_cast<uint8_t>(color & 0xff);
+	a = static_cast<uint8_t>(color & 0xff);
 }
 
 void rc::Engine::update(){
@@ -231,7 +229,7 @@ void rc::Engine::update(){
 }
 
 void rc::Engine::draw(){
-	const uint32_t * fbuffer = RC_Core_render(&player, &map, DRAW_TEXT_MAPPED_WALLS);
+	const uint32_t * fbuffer = render(&player, &map, DRAW_TEXT_MAPPED_WALLS);
 
 	int pitch = sizeof(uint32_t) * PROJ_PLANE_W;
 
@@ -240,40 +238,40 @@ void rc::Engine::draw(){
 	RC_DIE(SDL_RenderCopy(m_renderer, m_fbuffer_texture, NULL, NULL) < 0, SDL_GetError());
 
 //	draw the rays
-	SDL_SetRenderDrawColor(m_renderer, 0xff, 0xff, 0xff, 0xff);
+	//SDL_SetRenderDrawColor(m_renderer, 0xff, 0xff, 0xff, 0xff);
 
-	RC_DIE(SDL_RenderSetViewport(m_renderer, &m_viewports["map"]) < 0, SDL_GetError());
+	//RC_DIE(SDL_RenderSetViewport(m_renderer, &m_viewports["map"]) < 0, SDL_GetError());
 
-	SDL_Rect * map_vp = &m_viewports["map"];
-	map_draw(&map, this, (size_t)map_vp->w, (size_t)map_vp->h);
-	player_draw(&player, &map, m_renderer);
+	//SDL_Rect * map_vp = &m_viewports["map"];
+	//map_draw(&map, this, (size_t)map_vp->w, (size_t)map_vp->h);
+	//player_draw(&player, &map, m_renderer);
 
-	const vec2f * hits = RC_Core_hits();
-	for(size_t i = 0; i < PROJ_PLANE_W; i++){
-		const vec2f * hit = &hits[i];
-		assert(hit != NULL);
+	//const vec2f * hits = get_hits();
+	//for(size_t i = 0; i < PROJ_PLANE_W; i++){
+	//	const vec2f * hit = &hits[i];
+	//	assert(hit != NULL);
 
-		if(hit->x != INT_MAX && hit->y != INT_MAX){
-			vec2i player_screen, hit_screen;
+	//	if(hit->x != INT_MAX && hit->y != INT_MAX){
+	//		vec2i player_screen, hit_screen;
 
-			world_2_screen(&map, &player.position, &player_screen);
-			vec2f hitf;
+	//		world_2_screen(&map, &player.position, &player_screen);
+	//		vec2f hitf;
 
-			hitf.x = hit->x;
-			hitf.y = hit->y;
+	//		hitf.x = hit->x;
+	//		hitf.y = hit->y;
 
-			world_2_screen(&map, &hitf, &hit_screen);
+	//		world_2_screen(&map, &hitf, &hit_screen);
 
-			RC_DIE(SDL_RenderDrawLine(m_renderer,
-									  player_screen.x,
-									  player_screen.y,
-									  hit_screen.x,
-									  hit_screen.y) < 0, SDL_GetError());
-		}
-	}
+	//		RC_DIE(SDL_RenderDrawLine(m_renderer,
+	//								  player_screen.x,
+	//								  player_screen.y,
+	//								  hit_screen.x,
+	//								  hit_screen.y) < 0, SDL_GetError());
+	//	}
+	//}
 
 	RC_DIE(SDL_RenderSetViewport(m_renderer, &m_viewports["scene"]) < 0, SDL_GetError());
-	RC_Core_render_sprites(m_renderer, &map, &player);
+	render_sprites(m_renderer, &map, &player);
 	RC_DIE(SDL_UpdateTexture(sprite_texture, NULL, sprite_pixels, 4 * PROJ_PLANE_W) < 0,
 			SDL_GetError());
 	RC_DIE(SDL_RenderCopy(m_renderer, sprite_texture, NULL, NULL) < 0, SDL_GetError());
@@ -283,4 +281,16 @@ void rc::Engine::set_draw_color(uint32_t color){
 	uint8_t r, g, b, a;
 	unpack_color(color, r, g, b, a);
 	RC_DIE(SDL_SetRenderDrawColor(m_renderer, r, g, b, a) < 0, SDL_GetError());
+}
+
+SDL_Surface * rc::load_surface_RGBA(SDL_Renderer * renderer, const std::string& filename){
+	assert(renderer != NULL);
+	SDL_Surface * surface, * s;
+
+	RC_DIE(!(surface = IMG_Load(filename.c_str())), IMG_GetError());
+	RC_DIE(!(s = SDL_ConvertSurfaceFormat(surface, SDL_PIXELFORMAT_RGBA8888, 0)), IMG_GetError());
+
+	SDL_FreeSurface(surface);
+
+	return s;
 }

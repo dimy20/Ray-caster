@@ -1,6 +1,9 @@
 #include "RC_Core.h"
+#include <iostream>
 
 #define COLOR_KEY 0x980088ff
+#define PROJ_PLANE_W 800
+#define PROJ_PLANE_H 600
 
 static bool visited_cell[MAP_MAX_SIZE][MAP_MAX_SIZE];
 extern SDL_Texture * sprite_texture;
@@ -13,7 +16,7 @@ double rc::Core::perpendicular_distance(double viewing_angle, const vec2f * p, c
 	return (dx * cos(TO_RAD(viewing_angle))) + (dy * sin(TO_RAD(viewing_angle)));
 }
 
-rc::Core::Core(size_t proj_plane_w, size_t proj_plane_h, double fov, Resources * resources){
+rc::Core::Core(size_t proj_plane_w, size_t proj_plane_h, double fov){
 	m_proj_plane_w = proj_plane_w;
 	m_proj_plane_h = proj_plane_h;
 	m_proj_plane_center = proj_plane_h / 2;
@@ -21,13 +24,9 @@ rc::Core::Core(size_t proj_plane_w, size_t proj_plane_h, double fov, Resources *
 	m_hits = static_cast<vec2f *>(malloc(sizeof(vec2f) * m_proj_plane_w));
 	memset(m_hits, 0, sizeof(vec2f) * m_proj_plane_w);
 
-	//size_t dim = m_proj_plane_w * m_proj_plane_h;
-	//m_fbuffer = static_cast<uint32_t *>(malloc(sizeof(uint32_t) * dim));
 	m_angle_step = fov / static_cast<double>(m_proj_plane_w);
-
 	m_fbuffer = Frame_buffer(proj_plane_w, proj_plane_h);
-
-	m_resources = resources;
+	m_resources = Resources::instance();
 }
 
 rc::Core::~Core(){
@@ -425,7 +424,7 @@ const uint32_t * rc::Core::render(const Player * player, const Map * map, uint32
 		double h_dist = find_h_intercept(ray_angle, player, map, &h_hit, &map_coords_h);
 		double v_dist = find_v_intercept(ray_angle, player, map, &v_hit, &map_coords_v);
 
-		assert(h_dist > 0 && v_dist > 0);
+		assert(h_dist >= 0 && v_dist >= 0);
 
 		m_hits[x] = h_dist < v_dist ? h_hit: v_hit;
 
@@ -469,5 +468,5 @@ const uint32_t * rc::Core::render(const Player * player, const Map * map, uint32
 		if(ray_angle >= 360.0f) ray_angle -= 360.0f;
 	}
 
-	return m_fbuffer.pixels;
+	return &m_fbuffer.pixels[0];
 }

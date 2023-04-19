@@ -5,9 +5,13 @@
 
 #include "utils.h"
 #include "player.h"
-#include "Resources.h"
+#include "RC_Core.h"
 
 #define KEYBOARD_MAX_KEYS 350
+
+#define PROJ_PLANE_W 800
+#define PROJ_PLANE_H 600
+
 namespace rc{
 	enum TextureID{
 		FLOOR_TEXT,
@@ -19,7 +23,7 @@ namespace rc{
 		TEXTURES_NUM,
 	};
 
-	struct Engine{
+	struct Engine : public Core{
 		Engine(int w, int h);
 		~Engine();
 		constexpr SDL_Renderer * renderer(){ return m_renderer; };
@@ -62,8 +66,6 @@ namespace rc{
 			struct{
 				uint32_t keyboard[KEYBOARD_MAX_KEYS];
 			}input;
-
-			Resources * resources;
 	};
 
 	void unpack_color(uint32_t color, uint8_t& r, uint8_t& g, uint8_t& b);
@@ -71,4 +73,5 @@ namespace rc{
 	bool box_collision(const SDL_Rect * r1, const SDL_Rect * r2);
 	SDL_Texture * load_texture(Engine * r2d, const char * filename);
 	SDL_Texture * load_texture(Engine * r2d, const char * filename, uint32_t colorkey);
+	SDL_Surface * load_surface_RGBA(SDL_Renderer * renderer, const std::string& filename);
 }

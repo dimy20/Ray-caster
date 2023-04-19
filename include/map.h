@@ -4,7 +4,6 @@
 #include <assert.h>
 #include <stdlib.h>
 #include <stdio.h>
-#include "engine.h"
 #include "rc_math.h"
 
 #define MAP_MAX_SIZE 64

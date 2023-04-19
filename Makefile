@@ -5,7 +5,7 @@ SRC_DIR = src
 BUILD_DIR = build
 INCLUDE_DIRS = include
 
-CFLAGS = -Werror -Wall -g -std=c++17 $(foreach D, $(INCLUDE_DIRS), -I$(D))
+CFLAGS = -Werror -Wall -g -std=c++17 -O2 $(foreach D, $(INCLUDE_DIRS), -I$(D))
 LDFLAGS = -lSDL2 -lSDL2_image -lm
 
 SRCS = $(shell find $(SRC_DIR) -name '*.cpp')
