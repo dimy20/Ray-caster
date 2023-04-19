@@ -11,7 +11,7 @@ LDFLAGS = -lSDL2 -lSDL2_image -lm
 SRCS = $(shell find $(SRC_DIR) -name '*.cpp')
 OBJS = $(patsubst $(SRC_DIR)/%.cpp, $(BUILD_DIR)/%.o, $(SRCS))
 
-SRCS := $(filter-out $(SRC_DIR)/engine.cpp, $(SRCS))
+SRCS := $(filter-out $(SRC_DIR)/memory.cpp, $(SRCS))
 
 $(EXEC): $(OBJS)
 	$(CC) $^ -o $@ $(LDFLAGS)

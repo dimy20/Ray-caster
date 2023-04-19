@@ -1,8 +1,6 @@
 #pragma once
 
 #include <SDL2/SDL.h>
-#include <math.h>
-
 #include "map.h"
 
 #define FOV 60

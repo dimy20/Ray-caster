@@ -1,13 +1,10 @@
-
-#include "rc_math.h"
 #include "RC_Engine.h"
-
 #include "player.h"
 
 rc::Player::Player(int projection_plane_w){
 	fov = FOV;
 
-	double half_fov = TO_RAD(fov * 0.5);
+	double half_fov = to_rad(fov * 0.5);
 	int half_plane_w = projection_plane_w / 2;
 
 	dist_from_proj_plane = static_cast<double>(half_plane_w) / tan(half_fov);
@@ -40,8 +37,8 @@ void rc::Player::update(const rc::Engine * engine){
 	if(pressed_s || pressed_w){
 		Vec2f dir;
 
-		dir.x = cos(TO_RAD(viewing_angle));
-		dir.y = -sin(TO_RAD(viewing_angle));
+		dir.x = cos(to_rad(viewing_angle));
+		dir.y = -sin(to_rad(viewing_angle));
 
 		double _speed = pressed_w ? speed : - speed;
 		_speed *= delta_time;

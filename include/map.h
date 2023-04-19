@@ -1,13 +1,11 @@
 #pragma once
 
-#include <SDL2/SDL.h>
-#include <assert.h>
-#include <stdlib.h>
-#include <stdio.h>
-
+#include <cassert>
 #include <vector>
 #include "vec2.h"
-#include "rc_math.h"
+#include "utils.h"
+
+#include <SDL2/SDL.h>
 
 #define MAP_MAX_SIZE 64
 #define CELL_SIZE 64 // cube of dimensions 64 x 64 x 64
