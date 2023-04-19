@@ -15,7 +15,7 @@ namespace rc{
 	struct Player{
 		Player() {};
 		Player(int projection_plane_w);
-		void draw(const Map * map, SDL_Renderer * renderer);
+		void draw(const Map * map, Engine * engine);
 		void update(const rc::Engine * engine);
 
 		public:

@@ -30,6 +30,7 @@ namespace rc{
 		void run();
 		void blit(SDL_Texture * t, SDL_Rect * src, SDL_Rect * dest);
 		void set_draw_color(uint32_t color);
+		void world_2_screen(const vec2f * world_pos, vec2i * screen);
 
 		private:
 			void init(int w, int h);
@@ -43,6 +44,7 @@ namespace rc{
 
 			void load_textures();
 			void init_viewports();
+
 		
 			SDL_Window * m_window;
 			SDL_Renderer * m_renderer;

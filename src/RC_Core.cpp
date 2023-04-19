@@ -7,6 +7,7 @@
 
 static bool visited_cell[MAP_MAX_SIZE][MAP_MAX_SIZE];
 extern SDL_Texture * sprite_texture;
+extern uint32_t temp_map[8 * 8];
 
 uint32_t sprite_pixels[PROJ_PLANE_W * PROJ_PLANE_H];
 
@@ -29,42 +30,45 @@ rc::Core::Core(size_t proj_plane_w, size_t proj_plane_h, double fov){
 	m_resources = Resources::instance();
 
 	m_player = std::make_unique<Player>(proj_plane_w);
+
+	m_map = std::make_unique<Map>(temp_map, 8, 8);
+
+	m_map->set_sprite(100, 100, 4); // BARREL_SPRITE
 }
 
 rc::Core::~Core(){
 	free(m_hits);
 }
 
-double rc::Core::find_h_intercept(const double ray_angle, const Map * map, vec2f * h_hit, vec2i * map_coords){
+double rc::Core::find_h_intercept(const double ray_angle, vec2f * h_hit, vec2i * map_coords){
 	int step_y;
 	double delta_step_x;
-
 
 	/*Cell grid position for the current player's position.
 	 * We actually  this down because we're actually looking for h_hit
 	 * x and y positions, not the player's.*/
-	int map_y = (int)(m_player->position.y / map->cell_size);
+	int map_y = (int)(m_player->position.y / m_map->cell_size);
 
 	if(ray_angle > 0.0 && ray_angle < 180.0){
-		h_hit->y = map_y * (map->cell_size) - 1;
+		h_hit->y = map_y * (m_map->cell_size) - 1;
 
 		double dy = (m_player->position.y) - h_hit->y;
 		double dx = dy / tan(TO_RAD(ray_angle));
 
 		h_hit->x = (m_player->position.x) + dx;
 
-		step_y = -map->cell_size;
+		step_y = -m_map->cell_size;
 	}else{
-		h_hit->y = (map_y * map->cell_size) + map->cell_size;
+		h_hit->y = (map_y * m_map->cell_size) + m_map->cell_size;
 
 		double dy = h_hit->y - (m_player->position.y);
 		double dx = dy / -tan(TO_RAD(ray_angle));
 
 		h_hit->x = (m_player->position.x) + dx;
-		step_y = map->cell_size;
+		step_y = m_map->cell_size;
 	}
 
-	delta_step_x = static_cast<double>(map->cell_size) / tan(TO_RAD(ray_angle));
+	delta_step_x = static_cast<double>(m_map->cell_size) / tan(TO_RAD(ray_angle));
 	delta_step_x = (ray_angle > 180.0) ? -delta_step_x : delta_step_x;
 
 	double distance = DBL_MAX;
@@ -72,13 +76,13 @@ double rc::Core::find_h_intercept(const double ray_angle, const Map * map, vec2f
 	bool hit = false;
 	if(ray_angle != 0 && ray_angle != 180){
 		while(!hit){
-			int x = (int)(h_hit->x / map->cell_size);
-			int y = (int)(h_hit->y / map->cell_size);
-			if(x >= map->w || x < 0 || y >= map->h || y < 0){
+			int x = (int)(h_hit->x / m_map->cell_size);
+			int y = (int)(h_hit->y / m_map->cell_size);
+			if(x >= m_map->w || x < 0 || y >= m_map->h || y < 0){
 				map_coords->x = INT_MAX;
 				map_coords->y = INT_MAX;
 				break;
-			}else if(map->values[y * map->w + x] & WALL_BIT){
+			}else if(m_map->at(x, y) & WALL_BIT){
 
 				map_coords->x = x;
 				map_coords->y = y;
@@ -95,29 +99,29 @@ double rc::Core::find_h_intercept(const double ray_angle, const Map * map, vec2f
 	return distance;
 }
 
-double rc::Core::find_v_intercept(double ray_angle, const Map * map, vec2f * v_hit, vec2i * map_coords){
+double rc::Core::find_v_intercept(double ray_angle, vec2f * v_hit, vec2i * map_coords){
 	int step_x;
 	double delta_step_y;
 
 	// U, R
-	int map_x = (int)((m_player->position.x) / map->cell_size);
+	int map_x = (int)((m_player->position.x) / m_map->cell_size);
 	if(ray_angle < 90.0 || ray_angle > 270.0){
-		v_hit->x = (map_x * map->cell_size) + map->cell_size;
+		v_hit->x = (map_x * m_map->cell_size) + m_map->cell_size;
 		//NOTE: floating point convesion, careful?
 		double dx = v_hit->x - (m_player->position.x);
 		double dy = (double)dx * tan(TO_RAD(ray_angle));
 		v_hit->y = (m_player->position.y) - dy;
 
-		step_x = map->cell_size;
+		step_x = m_map->cell_size;
 		delta_step_y = -(step_x * tan(TO_RAD(ray_angle)));
 	}else{
-		v_hit->x = (map_x * map->cell_size) -1;
+		v_hit->x = (map_x * m_map->cell_size) -1;
 		double dx = (m_player->position.x) - v_hit->x;
 
 		double dy = -(dx * tan(TO_RAD(ray_angle)));
 		v_hit->y = (m_player->position.y) - dy;
 
-		step_x = -map->cell_size;
+		step_x = -m_map->cell_size;
 		delta_step_y = -(step_x * tan(TO_RAD(ray_angle)));
 	}
 
@@ -126,13 +130,13 @@ double rc::Core::find_v_intercept(double ray_angle, const Map * map, vec2f * v_h
 	bool hit = false;
 	if(ray_angle != 180.0 && ray_angle != 90.0){
 		while(!hit){
-			int x = v_hit->x / map->cell_size;
-			int y = v_hit->y / map->cell_size;
-			if(x >= map->w || x < 0 || y >= map->h || y < 0){
+			int x = v_hit->x / m_map->cell_size;
+			int y = v_hit->y / m_map->cell_size;
+			if(x >= m_map->w || x < 0 || y >= m_map->h || y < 0){
 				map_coords->x = INT_MAX;
 				map_coords->y = INT_MAX;
 				break;
-			}else if(map->values[y * map->w + x] & WALL_BIT){
+			}else if(m_map->at(x, y) & WALL_BIT){
 				map_coords->x = x;
 				map_coords->y = y;
 				distance = perpendicular_distance(m_player->viewing_angle, &m_player->position, v_hit);
@@ -201,11 +205,8 @@ void rc::Core::draw_textmapped_wall_slice(int texture_x, int slice_height, int s
 // *
 // *  Using similar triangle equation and some trig we find all the values we need.
 // * */
-void rc::Core::draw_floor_slice(const Map * map, double ray_angle,
-							 int screen_x, int wall_bottom_y){
-
+void rc::Core::draw_floor_slice(double ray_angle, int screen_x, int wall_bottom_y){
 	assert(m_player != NULL);
-	assert(map != NULL);
 
 	vec2f P;
 	double straight_dist_to_P; // the straight distance to the  point P.
@@ -231,14 +232,14 @@ void rc::Core::draw_floor_slice(const Map * map, double ray_angle,
 		P.x = m_player->position.x + (ray_dir_x * real_distance_to_P);
 		P.y = m_player->position.y + (ray_dir_y * real_distance_to_P);
 
-		int map_x = P.x / map->cell_size;
-		int map_y = P.y / map->cell_size;
+		int map_x = P.x / m_map->cell_size;
+		int map_y = P.y / m_map->cell_size;
 
-		if(map_x >= 0 && map_x < map->w && map_y >= 0 && map_y < map->h){
-			int texture_x = (int)P.x % map->cell_size;
-			int texture_y = (int)P.y % map->cell_size;
+		if(map_x >= 0 && map_x < m_map->w && map_y >= 0 && map_y < m_map->h){
+			int texture_x = (int)P.x % m_map->cell_size;
+			int texture_y = (int)P.y % m_map->cell_size;
 
-			uint32_t cell_data = map->values[map_y * map->w + map_x];
+			uint32_t cell_data = m_map->at(map_x, map_y);
 			if(cell_data & FLOOR_CEIL_BIT){
 				int text_index = (int)((cell_data >> 16) & 0xff);
 
@@ -268,7 +269,7 @@ void rc::Core::draw_floor_slice(const Map * map, double ray_angle,
 // * movement and possible flying, it's better to keep them seperate.
 // * */
 //
-void rc::Core::draw_celing_slice(const Map * map, double ray_angle, int screen_x, int wall_top){
+void rc::Core::draw_celing_slice(double ray_angle, int screen_x, int wall_top){
 	double straight_dist_to_P;
 	double real_dist_to_P;
 
@@ -288,15 +289,15 @@ void rc::Core::draw_celing_slice(const Map * map, double ray_angle, int screen_x
 		P.x = m_player->position.x + (ray_dir_x * real_dist_to_P);
 		P.y = m_player->position.y + (ray_dir_y * real_dist_to_P);
 
-		int map_x = P.x / map->cell_size;
-		int map_y = P.y / map->cell_size;
+		int map_x = P.x / m_map->cell_size;
+		int map_y = P.y / m_map->cell_size;
 
-		if(map_x >= 0 && map_x < map->w && map_y >= 0 && map_y < map->h){
-			int texture_x = (int)P.x % map->cell_size;
-			int texture_y = (int)P.y % map->cell_size;
+		if(map_x >= 0 && map_x < m_map->w && map_y >= 0 && map_y < m_map->h){
+			int texture_x = (int)P.x % m_map->cell_size;
+			int texture_y = (int)P.y % m_map->cell_size;
 
 
-			uint32_t cell_data = map->values[map_y * map->w + map_x];
+			uint32_t cell_data = m_map->at(map_x, map_y);
 			if(cell_data & FLOOR_CEIL_BIT){
 				int ceiling_text_i = (cell_data >> 8) & 0xff;
 				assert(ceiling_text_i >= 0);
@@ -344,14 +345,14 @@ void rc::Core::sprite_world_2_screen(const RC_Sprite * sprite, vec2i * screen_co
 	screen_coords->y = m_proj_plane_center; // this is constant.
 }
 
-void rc::Core::sprite_screen_dimensions(int index, int screen_x, SDL_Rect * rect, const Map * map){
-	const RC_Sprite * sprite = &map->sprites[index];
+void rc::Core::sprite_screen_dimensions(int index, int screen_x, SDL_Rect * rect){
+	const RC_Sprite * sprite = &m_map->sprites[index];
 
 	double dx = m_player->position.x - sprite->position.x;
 	double dy = m_player->position.y - sprite->position.y;
 	double dist_to_sprite = sqrt((dx * dx) + (dy * dy));
 
-	double A = (double)map->cell_size / dist_to_sprite;
+	double A = (double)m_map->cell_size / dist_to_sprite;
 	int sprite_h = (int)(m_player->dist_from_proj_plane * A);
 
 	rect->w = sprite_h;
@@ -361,21 +362,21 @@ void rc::Core::sprite_screen_dimensions(int index, int screen_x, SDL_Rect * rect
 }
 
 
-void rc::Core::render_sprites(SDL_Renderer * renderer, const Map * map){
-	const RC_Sprite * sprite = &map->sprites[0];
+void rc::Core::render_sprites(SDL_Renderer * renderer){
+	const RC_Sprite * sprite = &m_map->sprites[0];
 	vec2i screen_coords;
 	int columns_per_angle = m_proj_plane_w / m_player->fov;
 
 	sprite_world_2_screen(sprite, &screen_coords, columns_per_angle);
 	SDL_Rect sprite_dim;
-	sprite_screen_dimensions(0, screen_coords.x, &sprite_dim, map);
+	sprite_screen_dimensions(0, screen_coords.x, &sprite_dim);
 
 	int start_x = sprite_dim.x;
 	int start_y = sprite_dim.y;
 	int sprite_w = sprite_dim.w;
 	int sprite_h = sprite_dim.h;
 
-	const double screen_2_texture = ((double)map->cell_size / (double)sprite_w);
+	const double screen_2_texture = ((double)m_map->cell_size / (double)sprite_w);
 	memset(sprite_pixels, 0, sizeof(uint32_t) * (PROJ_PLANE_W * PROJ_PLANE_H));
 
 	for(int x = 0; x < sprite_w; x++){
@@ -400,9 +401,7 @@ void rc::Core::render_sprites(SDL_Renderer * renderer, const Map * map){
 
 }
 
-const uint32_t * rc::Core::render(const Map * map, uint32_t flags){ 
-	assert(map != NULL);
-
+const uint32_t * rc::Core::render(uint32_t flags){ 
 	// move the starting ray_angle direction to the leftmost part of the arc
 	double ray_angle = m_player->viewing_angle + (m_player->fov * 0.5);
 
@@ -418,8 +417,8 @@ const uint32_t * rc::Core::render(const Map * map, uint32_t flags){
 	for(int x = 0; x < m_proj_plane_w; x++){
 		if(ray_angle < 0) ray_angle += 360.0f;
 
-		double h_dist = find_h_intercept(ray_angle, map, &h_hit, &map_coords_h);
-		double v_dist = find_v_intercept(ray_angle, map, &v_hit, &map_coords_v);
+		double h_dist = find_h_intercept(ray_angle, &h_hit, &map_coords_h);
+		double v_dist = find_v_intercept(ray_angle, &v_hit, &map_coords_v);
 
 		assert(h_dist >= 0 && v_dist >= 0);
 
@@ -430,22 +429,22 @@ const uint32_t * rc::Core::render(const Map * map, uint32_t flags){
 		vec2i * map_coords = h_dist < v_dist ? &map_coords_h : &map_coords_v;
 
 		double dist_to_wall = MIN(h_dist, v_dist);
-		int slice_height = (int)(((double)map->cell_size / dist_to_wall) * m_player->dist_from_proj_plane);
+		int slice_height = (int)(((double)m_map->cell_size / dist_to_wall) * m_player->dist_from_proj_plane);
 
         int wall_bot = (slice_height * 0.5f) + m_proj_plane_center;
 	    int wall_top = m_proj_plane_center - (slice_height * 0.5f);       
 
 		assert(map_coords->x >= 0     &&
-			   map_coords->x < map->w &&
+			   map_coords->x < m_map->w &&
 			   map_coords->y >= 0     &&
-			   map_coords->y < map->h);
+			   map_coords->y < m_map->h);
 
 
-		uint32_t cell_data = map->values[map_coords->y * map->w + map_coords->x];
+		uint32_t cell_data = m_map->at(map_coords->x, map_coords->y);
 		assert(cell_data & WALL_BIT);
 
 		uint32_t cell_index = cell_data >> 8;
-		uint32_t color = map->colors[cell_index];
+		uint32_t color = m_map->colors[cell_index];
 
 		if(flags & DRAW_TEXT_MAPPED_WALLS){
 			SDL_Surface * texture = m_resources->get_surface(cell_index);
@@ -458,8 +457,8 @@ const uint32_t * rc::Core::render(const Map * map, uint32_t flags){
 			draw_wall_slice(wall_top, wall_bot, x, color);
 		}
 
-		draw_floor_slice(map, ray_angle, x, wall_bot);
-		draw_celing_slice(map, ray_angle, x, wall_top);
+		draw_floor_slice(ray_angle, x, wall_bot);
+		draw_celing_slice(ray_angle, x, wall_top);
 
 		ray_angle -= m_angle_step;
 		if(ray_angle >= 360.0f) ray_angle -= 360.0f;

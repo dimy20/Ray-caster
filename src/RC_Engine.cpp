@@ -91,13 +91,7 @@ void rc::Engine::init(int w, int h){
 							     PROJ_PLANE_H)), SDL_GetError());
 
 
-	map_init(&map, temp_map, 8, 8, &m_viewports["map"]);
-	RC_Map_set_sprite(&map, 100, 100, BARREL_SPRITE);
 
-	m_player = std::make_unique<Player>(PROJ_PLANE_W);
-	//player_init(&player, PROJ_PLANE_W);
-
-	//RC_Core_init(PROJ_PLANE_W, PROJ_PLANE_H, player.fov, textures, TEXTURES_NUM);
 
 	RC_DIE(!(sprite_texture = SDL_CreateTexture(m_renderer, 
 							                    SDL_PIXELFORMAT_RGBA8888, 
@@ -230,7 +224,7 @@ void rc::Engine::update(){
 }
 
 void rc::Engine::draw(){
-	const uint32_t * fbuffer = render(&map, DRAW_TEXT_MAPPED_WALLS);
+	const uint32_t * fbuffer = render(DRAW_TEXT_MAPPED_WALLS);
 
 	int pitch = sizeof(uint32_t) * PROJ_PLANE_W;
 
@@ -272,7 +266,7 @@ void rc::Engine::draw(){
 	//}
 
 	RC_DIE(SDL_RenderSetViewport(m_renderer, &m_viewports["scene"]) < 0, SDL_GetError());
-	render_sprites(m_renderer, &map);
+	render_sprites(m_renderer);
 	RC_DIE(SDL_UpdateTexture(sprite_texture, NULL, sprite_pixels, 4 * PROJ_PLANE_W) < 0,
 			SDL_GetError());
 	RC_DIE(SDL_RenderCopy(m_renderer, sprite_texture, NULL, NULL) < 0, SDL_GetError());
@@ -294,4 +288,17 @@ SDL_Surface * rc::load_surface_RGBA(SDL_Renderer * renderer, const std::string& 
 	SDL_FreeSurface(surface);
 
 	return s;
+}
+
+void rc::Engine::world_2_screen(const vec2f * world_pos, vec2i * screen) {
+	size_t map_w = m_map->cell_size * m_map->w;
+	size_t map_h = m_map->cell_size * m_map->h;
+
+	const SDL_Rect& map_viewport = m_viewports["map"];
+
+	float x_scale = static_cast<float>(map_viewport.w) / static_cast<float>(map_w);
+	float y_scale = static_cast<float>(map_viewport.h) / static_cast<float>(map_h);
+
+	screen->x = static_cast<int>(world_pos->x * x_scale);
+	screen->y = static_cast<int>(world_pos->y * y_scale);
 }

@@ -22,16 +22,12 @@ rc::Player::Player(int projection_plane_w){
 	rotation_speed = 120.0f;
 }
 
-void rc::Player::draw(const Map * map, SDL_Renderer * renderer){
+void rc::Player::draw(const Map * map, Engine * engine){
 	vec2i screen_position;
-	world_2_screen(map, &position, &screen_position);
-
-	SDL_Rect rect = {screen_position.x,
-					 screen_position.y,
-					 10, 10};
-
-	SDL_SetRenderDrawColor(renderer, 0xff, 0xff, 0xff, 0xff); // remove this from here?
-	SDL_RenderFillRect(renderer, &rect);
+	engine->world_2_screen(&position, &screen_position);
+	SDL_Rect rect = {screen_position.x, screen_position.y, 10, 10};
+	SDL_SetRenderDrawColor(engine->renderer(), 0xff, 0xff, 0xff, 0xff); // remove this from here?
+	SDL_RenderFillRect(engine->renderer(), &rect);
 }
 
 void rc::Player::update(const rc::Engine * engine){

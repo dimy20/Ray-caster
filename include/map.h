@@ -4,6 +4,8 @@
 #include <assert.h>
 #include <stdlib.h>
 #include <stdio.h>
+
+#include <vector>
 #include "rc_math.h"
 
 #define MAP_MAX_SIZE 64
@@ -34,23 +36,46 @@ typedef struct{
 	uint32_t screen_pixels;
 }RC_Sprite;
 
-typedef struct{
-	uint32_t * values;
-	int w;
-	int h;
-	size_t cell_size;
-	const SDL_Rect * viewport;
-	const uint32_t * colors;
-	RC_Sprite sprites[MAX_SPRITES];
-	int sprites_len;
-}Map;
-
 namespace rc{
 	struct Engine;
+
+	struct Map{
+		Map(){};
+		Map(const uint32_t * values, int w, int h);
+		void draw(rc::Engine * engine, size_t window_w, size_t window_h);
+		inline uint32_t at(int x, int y) const { return values[y * w + x]; };
+		void set_sprite(int x, int y, int texture_id);
+
+		public:
+			int w;
+			int h;
+			size_t cell_size;
+			std::vector<uint32_t> values;
+			RC_Sprite sprites[MAX_SPRITES];
+			size_t sprites_len = 0;
+			const uint32_t * colors;
+	};
 };
 
-void map_init(Map * map, uint32_t * values, size_t w, size_t h, const SDL_Rect * viewport);
-void map_quit(Map * map);
-void map_draw(const Map * map, rc::Engine * engine, size_t window_w, size_t window_h);
-void world_2_screen(const Map * map, const vec2f * world_pos, vec2i * screen);
-void RC_Map_set_sprite(Map * map, int x, int y, int texture_id);
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
