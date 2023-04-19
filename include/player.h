@@ -11,23 +11,20 @@
 
 namespace rc{
 	struct Engine;
+
+	struct Player{
+		Player() {};
+		Player(int projection_plane_w);
+		void draw(const Map * map, SDL_Renderer * renderer);
+		void update(const rc::Engine * engine);
+
+		public:
+			double dist_from_proj_plane;
+			int height;
+			double viewing_angle;
+			double fov;
+			vec2f position;
+			double speed;
+			double rotation_speed;
+	};
 }
-
-typedef struct{
-	double dist_from_proj_plane;
-	int height;
-	double viewing_angle;
-	double fov;
-	vec2f position;
-
-	double speed;
-	double rotation_speed;
-}Player;
-
-void player_draw(const Player * player,
-				 const Map * map,
-				 SDL_Renderer * renderer);
-
-void player_init(Player * player, size_t projection_plane_w);
-
-void player_update(Player * player, const rc::Engine * engine);

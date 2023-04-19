@@ -48,9 +48,8 @@ namespace rc{
 			SDL_Renderer * m_renderer;
 			bool m_running;
 			std::unordered_map<std::string, SDL_Rect> m_viewports;
-			SDL_Texture * m_fbuffer_texture;
 
-			Player player;
+			SDL_Texture * m_fbuffer_texture;
 			Map map;
 
 		public:

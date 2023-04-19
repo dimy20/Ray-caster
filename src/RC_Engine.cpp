@@ -94,7 +94,8 @@ void rc::Engine::init(int w, int h){
 	map_init(&map, temp_map, 8, 8, &m_viewports["map"]);
 	RC_Map_set_sprite(&map, 100, 100, BARREL_SPRITE);
 
-	player_init(&player, PROJ_PLANE_W);
+	m_player = std::make_unique<Player>(PROJ_PLANE_W);
+	//player_init(&player, PROJ_PLANE_W);
 
 	//RC_Core_init(PROJ_PLANE_W, PROJ_PLANE_H, player.fov, textures, TEXTURES_NUM);
 
@@ -225,11 +226,11 @@ void rc::unpack_color(uint32_t color, uint8_t& r, uint8_t& g, uint8_t& b, uint8_
 }
 
 void rc::Engine::update(){
-	player_update(&player, this);
+	m_player->update(this);
 }
 
 void rc::Engine::draw(){
-	const uint32_t * fbuffer = render(&player, &map, DRAW_TEXT_MAPPED_WALLS);
+	const uint32_t * fbuffer = render(&map, DRAW_TEXT_MAPPED_WALLS);
 
 	int pitch = sizeof(uint32_t) * PROJ_PLANE_W;
 
@@ -271,7 +272,7 @@ void rc::Engine::draw(){
 	//}
 
 	RC_DIE(SDL_RenderSetViewport(m_renderer, &m_viewports["scene"]) < 0, SDL_GetError());
-	render_sprites(m_renderer, &map, &player);
+	render_sprites(m_renderer, &map);
 	RC_DIE(SDL_UpdateTexture(sprite_texture, NULL, sprite_pixels, 4 * PROJ_PLANE_W) < 0,
 			SDL_GetError());
 	RC_DIE(SDL_RenderCopy(m_renderer, sprite_texture, NULL, NULL) < 0, SDL_GetError());

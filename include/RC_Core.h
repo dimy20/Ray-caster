@@ -8,14 +8,17 @@
 #include <stdbool.h>
 #include <limits.h>
 
+#include <unordered_map>
+#include <vector>
+#include <memory>
+
 #include <SDL2/SDL.h>
 
 #include "map.h"
 #include "player.h"
 #include "rc_math.h"
 #include "Resources.h"
-#include <unordered_map>
-#include <vector>
+
 
 namespace rc{
 	enum RenderFlag{
@@ -28,26 +31,26 @@ namespace rc{
 	struct Core{
 		Core(size_t proj_plane_w, size_t proj_plane_h, double fov);
 		~Core();
-		void render_sprites(SDL_Renderer * renderer, const Map * map, const Player * player);
-		const uint32_t * render(const Player * player, const Map * map, uint32_t flags);
+		void render_sprites(SDL_Renderer * renderer, const Map * map);
+		const uint32_t * render(const Map * map, uint32_t flags);
 		constexpr vec2f * get_hits() const { return m_hits; }
 
 		private:
-			double find_h_intercept(const double ray_angle, const Player * player, const Map * map, vec2f * h_hit, vec2i * map_coords);
+			double find_h_intercept(const double ray_angle, const Map * map, vec2f * h_hit, vec2i * map_coords);
 
-			double find_v_intercept(double ray_angle, const Player * player, const Map * map, vec2f * v_hit, vec2i * map_coords);
+			double find_v_intercept(double ray_angle, const Map * map, vec2f * v_hit, vec2i * map_coords);
 
 			void draw_textmapped_wall_slice(int texture_x, int slice_height, int screen_x, SDL_Surface * texture);
 
 			void draw_wall_slice(int y_top, int y_bot, int x, uint32_t color);
 
-			void draw_floor_slice(const Player * player, const Map * map, double ray_angle, int screen_x, int wall_bottom_y);
+			void draw_floor_slice(const Map * map, double ray_angle, int screen_x, int wall_bottom_y);
 
-			void draw_celing_slice(const Player * player, const Map * map, double ray_angle, int screen_x, int wall_top);
+			void draw_celing_slice(const Map * map, double ray_angle, int screen_x, int wall_top);
 
-			void sprite_screen_dimensions(int index, int screen_x, SDL_Rect * rect, const Player * player, const Map * map);
+			void sprite_screen_dimensions(int index, int screen_x, SDL_Rect * rect, const Map * map);
 
-			void sprite_world_2_screen(const RC_Sprite * sprite, vec2i * screen_coords, const Player * player, int columns_per_angle);
+			void sprite_world_2_screen(const RC_Sprite * sprite, vec2i * screen_coords, int columns_per_angle);
 
 			double perpendicular_distance(double viewing_angle, const vec2f * p, const vec2f * hit);
 
@@ -58,6 +61,7 @@ namespace rc{
 
 		protected:
 			rc::Resources * m_resources;
+			std::unique_ptr<Player> m_player;
 
 		private:
 			int m_proj_plane_w;
