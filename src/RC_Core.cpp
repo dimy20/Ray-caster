@@ -11,7 +11,7 @@ extern uint32_t temp_map[8 * 8];
 
 uint32_t sprite_pixels[PROJ_PLANE_W * PROJ_PLANE_H];
 
-double rc::Core::perpendicular_distance(double viewing_angle, const vec2f * p, const vec2f * hit){
+double rc::Core::perpendicular_distance(double viewing_angle, const Vec2f * p, const Vec2f * hit){
 	double dx = hit->x - p->x;
 	double dy = p->y - hit->y;
 	return (dx * cos(TO_RAD(viewing_angle))) + (dy * sin(TO_RAD(viewing_angle)));
@@ -22,8 +22,9 @@ rc::Core::Core(size_t proj_plane_w, size_t proj_plane_h, double fov){
 	m_proj_plane_h = proj_plane_h;
 	m_proj_plane_center = proj_plane_h / 2;
 
-	m_hits = static_cast<vec2f *>(malloc(sizeof(vec2f) * m_proj_plane_w));
-	memset(m_hits, 0, sizeof(vec2f) * m_proj_plane_w);
+	m_hits.resize(m_proj_plane_w, Vec2f(0, 0));
+	//m_hits = static_cast<Vec2f *>(malloc(sizeof(Vec2f) * m_proj_plane_w));
+	//memset(m_hits, 0, sizeof(Vec2f) * m_proj_plane_w);
 
 	m_angle_step = fov / static_cast<double>(m_proj_plane_w);
 	m_fbuffer = Frame_buffer(proj_plane_w, proj_plane_h);
@@ -36,11 +37,9 @@ rc::Core::Core(size_t proj_plane_w, size_t proj_plane_h, double fov){
 	m_map->set_sprite(100, 100, 4); // BARREL_SPRITE
 }
 
-rc::Core::~Core(){
-	free(m_hits);
-}
+rc::Core::~Core(){ };
 
-double rc::Core::find_h_intercept(const double ray_angle, vec2f * h_hit, vec2i * map_coords){
+double rc::Core::find_h_intercept(double ray_angle, Vec2f * h_hit, Vec2i& map_coords){
 	int step_y;
 	double delta_step_x;
 
@@ -79,13 +78,13 @@ double rc::Core::find_h_intercept(const double ray_angle, vec2f * h_hit, vec2i *
 			int x = (int)(h_hit->x / m_map->cell_size);
 			int y = (int)(h_hit->y / m_map->cell_size);
 			if(x >= m_map->w || x < 0 || y >= m_map->h || y < 0){
-				map_coords->x = INT_MAX;
-				map_coords->y = INT_MAX;
+				map_coords.x = INT_MAX;
+				map_coords.y = INT_MAX;
 				break;
 			}else if(m_map->at(x, y) & WALL_BIT){
 
-				map_coords->x = x;
-				map_coords->y = y;
+				map_coords.x = x;
+				map_coords.y = y;
 				hit = true;
 				distance = perpendicular_distance(m_player->viewing_angle, &m_player->position, h_hit);
 			}else{
@@ -99,7 +98,7 @@ double rc::Core::find_h_intercept(const double ray_angle, vec2f * h_hit, vec2i *
 	return distance;
 }
 
-double rc::Core::find_v_intercept(double ray_angle, vec2f * v_hit, vec2i * map_coords){
+double rc::Core::find_v_intercept(double ray_angle, Vec2f * v_hit, Vec2i& map_coords){
 	int step_x;
 	double delta_step_y;
 
@@ -133,12 +132,12 @@ double rc::Core::find_v_intercept(double ray_angle, vec2f * v_hit, vec2i * map_c
 			int x = v_hit->x / m_map->cell_size;
 			int y = v_hit->y / m_map->cell_size;
 			if(x >= m_map->w || x < 0 || y >= m_map->h || y < 0){
-				map_coords->x = INT_MAX;
-				map_coords->y = INT_MAX;
+				map_coords.x = INT_MAX;
+				map_coords.y = INT_MAX;
 				break;
 			}else if(m_map->at(x, y) & WALL_BIT){
-				map_coords->x = x;
-				map_coords->y = y;
+				map_coords.x = x;
+				map_coords.y = y;
 				distance = perpendicular_distance(m_player->viewing_angle, &m_player->position, v_hit);
 				hit = true;
 			}else{
@@ -208,12 +207,11 @@ void rc::Core::draw_textmapped_wall_slice(int texture_x, int slice_height, int s
 void rc::Core::draw_floor_slice(double ray_angle, int screen_x, int wall_bottom_y){
 	assert(m_player != NULL);
 
-	vec2f P;
+	Vec2f P;
 	double straight_dist_to_P; // the straight distance to the  point P.
 
 	// ray is assumed normalized
-	double ray_dir_x = cos(TO_RAD(ray_angle));
-	double ray_dir_y = -sin(TO_RAD(ray_angle));
+	Vec2f ray_dir(cos(TO_RAD(ray_angle)), -sin(TO_RAD(ray_angle)));
 
 	double beta = m_player->viewing_angle - ray_angle;
 	double cosine_beta = cos(TO_RAD(beta));
@@ -228,9 +226,7 @@ void rc::Core::draw_floor_slice(double ray_angle, int screen_x, int wall_bottom_
 		   to find p. */
 
 		double real_distance_to_P = straight_dist_to_P / cosine_beta;
-
-		P.x = m_player->position.x + (ray_dir_x * real_distance_to_P);
-		P.y = m_player->position.y + (ray_dir_y * real_distance_to_P);
+		P = m_player->position + (ray_dir * real_distance_to_P);
 
 		int map_x = P.x / m_map->cell_size;
 		int map_y = P.y / m_map->cell_size;
@@ -276,18 +272,15 @@ void rc::Core::draw_celing_slice(double ray_angle, int screen_x, int wall_top){
 	double beta = ray_angle - m_player->viewing_angle;
 	double cosine_beta = cos(TO_RAD(beta));
 
-	double ray_dir_x = cos(TO_RAD(ray_angle));
-	double ray_dir_y = -sin(TO_RAD(ray_angle));
+	Vec2f ray_dir(cos(TO_RAD(ray_angle)), -sin(TO_RAD(ray_angle)));
+	Vec2f P;
 
-	vec2f P;
 	for(int y = wall_top; y >= 0; y--){
 		int row_diff = m_proj_plane_center - y;
 		straight_dist_to_P = ((double)m_player->height / (double)row_diff) * m_player->dist_from_proj_plane;
 
 		real_dist_to_P = straight_dist_to_P / cosine_beta;
-
-		P.x = m_player->position.x + (ray_dir_x * real_dist_to_P);
-		P.y = m_player->position.y + (ray_dir_y * real_dist_to_P);
+		P = m_player->position + (ray_dir * real_dist_to_P);
 
 		int map_x = P.x / m_map->cell_size;
 		int map_y = P.y / m_map->cell_size;
@@ -319,12 +312,9 @@ void rc::Core::draw_celing_slice(double ray_angle, int screen_x, int wall_top){
 #define FIRST_QUADRANT(a) ((a) >= 0.0 && (a) <= 90.0)
 #define FOURTH_QUADRANT(a) ((a) >= 270.0 && a <= 360.0)
 
-void rc::Core::sprite_world_2_screen(const RC_Sprite * sprite, vec2i * screen_coords, int columns_per_angle){
+void rc::Core::sprite_world_2_screen(const RC_Sprite * sprite, Vec2i& screen_coords, int columns_per_angle){
 
-	vec2f sprite_dir;
-	sprite_dir.x = sprite->position.x - m_player->position.x;
-	sprite_dir.y = sprite->position.y - m_player->position.y;
-
+	Vec2f sprite_dir = sprite->position - m_player->position;
 	double sprite_angle = atan2(-sprite_dir.y, sprite_dir.x) * (180.0f / M_PI);
 
 	if(sprite_angle > 360.0) sprite_angle -= 360.0;
@@ -341,19 +331,23 @@ void rc::Core::sprite_world_2_screen(const RC_Sprite * sprite, vec2i * screen_co
 	if(FOURTH_QUADRANT(m_player->viewing_angle) && FIRST_QUADRANT(sprite_angle))
 		q -= 360.0;
 
-	screen_coords->x = q * columns_per_angle;
-	screen_coords->y = m_proj_plane_center; // this is constant.
+	//TODO: return this instead of tak
+	screen_coords.x = q * columns_per_angle;
+	screen_coords.y = m_proj_plane_center; // this is constant.
 }
 
 void rc::Core::sprite_screen_dimensions(int index, int screen_x, SDL_Rect * rect){
 	const RC_Sprite * sprite = &m_map->sprites[index];
 
-	double dx = m_player->position.x - sprite->position.x;
-	double dy = m_player->position.y - sprite->position.y;
-	double dist_to_sprite = sqrt((dx * dx) + (dy * dy));
+	Vec2f sprite_dir = sprite->position - m_player->position;
+	double dist_to_sprite = sprite_dir.length();
 
-	double A = (double)m_map->cell_size / dist_to_sprite;
-	int sprite_h = (int)(m_player->dist_from_proj_plane * A);
+	//double dx = m_player->position.x - sprite->position.x;
+	//double dy = m_player->position.y - sprite->position.y;
+	//double dist_to_sprite = sqrt((dx * dx) + (dy * dy));
+
+	double A = static_cast<double>(m_map->cell_size) / dist_to_sprite;
+	int sprite_h = static_cast<int>(m_player->dist_from_proj_plane * A);
 
 	rect->w = sprite_h;
 	rect->h = sprite_h;
@@ -364,10 +358,10 @@ void rc::Core::sprite_screen_dimensions(int index, int screen_x, SDL_Rect * rect
 
 void rc::Core::render_sprites(SDL_Renderer * renderer){
 	const RC_Sprite * sprite = &m_map->sprites[0];
-	vec2i screen_coords;
+	Vec2i screen_coords;
 	int columns_per_angle = m_proj_plane_w / m_player->fov;
 
-	sprite_world_2_screen(sprite, &screen_coords, columns_per_angle);
+	sprite_world_2_screen(sprite, screen_coords, columns_per_angle);
 	SDL_Rect sprite_dim;
 	sprite_screen_dimensions(0, screen_coords.x, &sprite_dim);
 
@@ -406,19 +400,18 @@ const uint32_t * rc::Core::render(uint32_t flags){
 	double ray_angle = m_player->viewing_angle + (m_player->fov * 0.5);
 
 	m_fbuffer.clear();
-	//RC_Core_clear_buffer();
-	memset(m_hits, 0, sizeof(vec2f) * m_proj_plane_w);
+	std::fill(m_hits.begin(), m_hits.end(), Vec2f(0, 0));
 	memset(visited_cell, 0, sizeof(bool) * MAP_MAX_SIZE * MAP_MAX_SIZE);
 
-	vec2i map_coords_h, map_coords_v;
-	vec2f h_hit, v_hit;
+	Vec2i map_coords_h, map_coords_v;
+	Vec2f h_hit, v_hit;
 
 	/*Trace a ray for every colum*/
 	for(int x = 0; x < m_proj_plane_w; x++){
 		if(ray_angle < 0) ray_angle += 360.0f;
 
-		double h_dist = find_h_intercept(ray_angle, &h_hit, &map_coords_h);
-		double v_dist = find_v_intercept(ray_angle, &v_hit, &map_coords_v);
+		double h_dist = find_h_intercept(ray_angle, &h_hit, map_coords_h);
+		double v_dist = find_v_intercept(ray_angle, &v_hit, map_coords_v);
 
 		assert(h_dist >= 0 && v_dist >= 0);
 
@@ -426,7 +419,7 @@ const uint32_t * rc::Core::render(uint32_t flags){
 
 		int texture_x = h_dist < v_dist ? (int)h_hit.x % 64 : (int)v_hit.y % 64;
 		
-		vec2i * map_coords = h_dist < v_dist ? &map_coords_h : &map_coords_v;
+		Vec2i * map_coords = h_dist < v_dist ? &map_coords_h : &map_coords_v;
 
 		double dist_to_wall = MIN(h_dist, v_dist);
 		int slice_height = (int)(((double)m_map->cell_size / dist_to_wall) * m_player->dist_from_proj_plane);

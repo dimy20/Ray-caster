@@ -290,7 +290,7 @@ SDL_Surface * rc::load_surface_RGBA(SDL_Renderer * renderer, const std::string& 
 	return s;
 }
 
-void rc::Engine::world_2_screen(const vec2f * world_pos, vec2i * screen) {
+rc::Vec2i rc::Engine::world_2_screen(const rc::Vec2f& world_pos) {
 	size_t map_w = m_map->cell_size * m_map->w;
 	size_t map_h = m_map->cell_size * m_map->h;
 
@@ -299,6 +299,8 @@ void rc::Engine::world_2_screen(const vec2f * world_pos, vec2i * screen) {
 	float x_scale = static_cast<float>(map_viewport.w) / static_cast<float>(map_w);
 	float y_scale = static_cast<float>(map_viewport.h) / static_cast<float>(map_h);
 
-	screen->x = static_cast<int>(world_pos->x * x_scale);
-	screen->y = static_cast<int>(world_pos->y * y_scale);
+	int x = static_cast<int>(world_pos.x * x_scale);
+	int y = static_cast<int>(world_pos.y * y_scale);
+
+	return {x, y};
 }

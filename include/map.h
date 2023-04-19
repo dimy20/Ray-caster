@@ -6,6 +6,7 @@
 #include <stdio.h>
 
 #include <vector>
+#include "vec2.h"
 #include "rc_math.h"
 
 #define MAP_MAX_SIZE 64
@@ -31,7 +32,7 @@
 #define FLCL(s, f, c) (s << 24 | f << 16 | c << 8 | FLOOR_CEIL_BIT) & 0xffffff02
 
 typedef struct{
-	vec2f position;
+	rc::Vec2f position;
 	int texture_id;
 	uint32_t screen_pixels;
 }RC_Sprite;

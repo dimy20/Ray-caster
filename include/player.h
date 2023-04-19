@@ -23,7 +23,7 @@ namespace rc{
 			int height;
 			double viewing_angle;
 			double fov;
-			vec2f position;
+			Vec2f position;
 			double speed;
 			double rotation_speed;
 	};

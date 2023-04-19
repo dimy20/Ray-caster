@@ -15,16 +15,14 @@ rc::Player::Player(int projection_plane_w){
 	height = PLAYER_HEIGHT;
 	viewing_angle = PLAYER_VIEWING_ANGLE;
 
-	position.x = 96.0;
-	position.y = 224.0;
+	position = Vec2f(96.0, 224.0);
 
 	speed = 80.0f;
 	rotation_speed = 120.0f;
 }
 
 void rc::Player::draw(const Map * map, Engine * engine){
-	vec2i screen_position;
-	engine->world_2_screen(&position, &screen_position);
+	auto screen_position = engine->world_2_screen(position);
 	SDL_Rect rect = {screen_position.x, screen_position.y, 10, 10};
 	SDL_SetRenderDrawColor(engine->renderer(), 0xff, 0xff, 0xff, 0xff); // remove this from here?
 	SDL_RenderFillRect(engine->renderer(), &rect);
@@ -40,7 +38,7 @@ void rc::Player::update(const rc::Engine * engine){
 	bool pressed_a = engine->input.keyboard[SDL_SCANCODE_A];
 
 	if(pressed_s || pressed_w){
-		vec2f dir;
+		Vec2f dir;
 
 		dir.x = cos(TO_RAD(viewing_angle));
 		dir.y = -sin(TO_RAD(viewing_angle));
@@ -48,8 +46,7 @@ void rc::Player::update(const rc::Engine * engine){
 		double _speed = pressed_w ? speed : - speed;
 		_speed *= delta_time;
 
-		position.x += dir.x * _speed;
-		position.y += dir.y * _speed;
+		position += dir * _speed;
 	}
 
 	if(pressed_d || pressed_a){

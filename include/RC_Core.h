@@ -33,12 +33,11 @@ namespace rc{
 		~Core();
 		void render_sprites(SDL_Renderer * renderer);
 		const uint32_t * render(uint32_t flags);
-		constexpr vec2f * get_hits() const { return m_hits; }
+		constexpr const std::vector<Vec2f>& hits() const { return m_hits; };
 
 		private:
-			double find_h_intercept(const double ray_angle, vec2f * h_hit, vec2i * map_coords);
-
-			double find_v_intercept(double ray_angle, vec2f * v_hit, vec2i * map_coords);
+			double find_h_intercept(double ray_angle, Vec2f * h_hit, Vec2i& map_coords);
+			double find_v_intercept(double ray_angle, Vec2f * v_hit, Vec2i& map_coords);
 
 			void draw_textmapped_wall_slice(int texture_x, int slice_height, int screen_x, SDL_Surface * texture);
 
@@ -50,9 +49,9 @@ namespace rc{
 
 			void sprite_screen_dimensions(int index, int screen_x, SDL_Rect * rect);
 
-			void sprite_world_2_screen(const RC_Sprite * sprite, vec2i * screen_coords, int columns_per_angle);
+			void sprite_world_2_screen(const RC_Sprite * sprite, Vec2i& screen_coords, int columns_per_angle);
 
-			double perpendicular_distance(double viewing_angle, const vec2f * p, const vec2f * hit);
+			double perpendicular_distance(double viewing_angle, const Vec2f * p, const Vec2f * hit);
 
 			constexpr bool column_in_bounds(int x) const { return x >= 0 && x < m_proj_plane_w; };
 			constexpr bool row_in_bounds(int y) const { return y >= 0 && y < m_proj_plane_h; };
@@ -69,7 +68,7 @@ namespace rc{
 			int m_proj_plane_h;
 			int m_proj_plane_center;
 			double m_angle_step;
-			vec2f * m_hits;
+			std::vector<Vec2f> m_hits;
 			double * m_sprite_distance;
 
 			struct Frame_buffer{
@@ -83,6 +82,5 @@ namespace rc{
 					int w;
 					int h;
 			}m_fbuffer;
-
 	};
 }
