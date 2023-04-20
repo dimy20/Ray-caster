@@ -30,8 +30,13 @@ rc::Core::Core(size_t proj_plane_w, size_t proj_plane_h, double fov){
 
 	m_player = std::make_unique<Player>(proj_plane_w);
 	m_map = std::make_unique<Map>(temp_map, 8, 8);
-
 	m_map->set_sprite(100, 100, 4); // BARREL_SPRITE
+
+	// compute some constants.
+	m_constants.half_fov = m_player->fov * 0.5f;
+	m_constants.columns_per_angle = m_proj_plane_w / m_player->fov;
+	m_constants.cell_size_times_dist = static_cast<double>(m_map->cell_size) * m_player->dist_from_proj_plane;
+	m_constants.pheight_times_distplane = static_cast<double>(m_player->height) * m_player->dist_from_proj_plane;
 }
 
 rc::Core::~Core(){ };
@@ -181,26 +186,27 @@ void rc::Core::draw_textmapped_wall_slice(int texture_x, int slice_height, int s
 			/*Makes the following mapping of values from [0, size] -> [0, column_height]
 			*Scaling the original texture to column height*/
 			texture_y = ((i * texture_size) / slice_height);
-			uint32_t pixel_color = ((uint32_t *)texture->pixels)[texture_y * texture->w + texture_x];
 
+			uint32_t * pixels = reinterpret_cast<uint32_t *>(texture->pixels);
+			uint32_t pixel_color = pixels[texture_y * texture->w + texture_x];
 			m_fbuffer.set_pixel(screen_x, pixel_y, pixel_color);
 
 		}
 	}
 }
 
-///*
-// * When drawing a wall slice is finished, We can draw the corresponding  slice for the 
-// * previously
-// * rendered wall slice. The process in this case will be reversed, instead of casting rays 
-// * in world space, finding the distance to wall slicees and corresponding height in screen space,
-// * will be finding a position in world space from a position in screen space.
-// * (screen_x, y) -> point in world space, we'll map this point to a  texture pixel color
-// * and use that color to draw the (screen_x, y) pixel on the screen.
-// *  y E [wall_slice_bottom_y, plane_height]
-// *
-// *  Using similar triangle equation and some trig we find all the values we need.
-// * */
+/*
+ * When drawing a wall slice is finished, We can draw the corresponding  slice for the 
+ * previously
+ * rendered wall slice. The process in this case will be reversed, instead of casting rays 
+ * in world space, finding the distance to wall slicees and corresponding height in screen space,
+ * will be finding a position in world space from a position in screen space.
+ * (screen_x, y) -> point in world space, we'll map this point to a  texture pixel color
+ * and use that color to draw the (screen_x, y) pixel on the screen.
+ *  y E [wall_slice_bottom_y, plane_height]
+ *
+ *  Using similar triangle equation and some trig we find all the values we need.
+ * */
 void rc::Core::draw_floor_slice(double ray_angle, int screen_x, int wall_bottom_y){
 	assert(m_player != NULL);
 
@@ -213,12 +219,10 @@ void rc::Core::draw_floor_slice(double ray_angle, int screen_x, int wall_bottom_
 	double beta = m_player->viewing_angle - ray_angle;
 	double cosine_beta = cos(to_rad(beta));
 
-	double pheight_t_distplane = static_cast<double>(m_player->height) * m_player->dist_from_proj_plane;
-
 	for(int y = wall_bottom_y; y < m_proj_plane_h; y++){ // the range mentioned above
 		int row_diff = y - m_proj_plane_center;
 		// from similar triangle we can find the perpendicular distance from player to P.
-		straight_dist_to_P = pheight_t_distplane / static_cast<double>(row_diff);
+		straight_dist_to_P = m_constants.pheight_times_distplane / static_cast<double>(row_diff);
 
 		/* We can derive this by looking a the scene from a top down perspective.
 		   After finding the real distace we can just scale the ray by this value
@@ -245,7 +249,8 @@ void rc::Core::draw_floor_slice(double ray_angle, int screen_x, int wall_bottom_
 				assert(texture_x >= 0 && texture_x < texture->w &&
 					   texture_y >= 0 && texture_y < texture->h);
 
-				uint32_t pixel_color = ((uint32_t *)texture->pixels)[texture_y * texture->w + texture_x];
+				uint32_t * pixels = reinterpret_cast<uint32_t*>(texture->pixels);
+				uint32_t pixel_color = pixels[texture_y * texture->w + texture_x];
 				m_fbuffer.set_pixel(screen_x, y, pixel_color);
 
 			}
@@ -254,16 +259,16 @@ void rc::Core::draw_floor_slice(double ray_angle, int screen_x, int wall_bottom_
 	}
 
 }
-//
-///* 
-// * This function is symetric to the  slice drawing function.
-// * It will draw the corresponding ceiling slice for a given column screen_x.
-// * The process of finding the world point P in the ceiling is completley symetric 
-// * to process of findig a point P for a  cast. both  and celing drawing could be
-// * merged into a single function, however since this raycasting engine will have vertical
-// * movement and possible flying, it's better to keep them seperate.
-// * */
-//
+
+/* 
+ * This function is symetric to the  slice drawing function.
+ * It will draw the corresponding ceiling slice for a given column screen_x.
+ * The process of finding the world point P in the ceiling is completley symetric 
+ * to process of findig a point P for a  cast. both  and celing drawing could be
+ * merged into a single function, however since this raycasting engine will have vertical
+ * movement and possible flying, it's better to keep them seperate.
+ * */
+
 void rc::Core::draw_celing_slice(double ray_angle, int screen_x, int wall_top){
 	double straight_dist_to_P;
 	double real_dist_to_P;
@@ -274,13 +279,10 @@ void rc::Core::draw_celing_slice(double ray_angle, int screen_x, int wall_top){
 	Vec2f ray_dir(cos(to_rad(ray_angle)), -sin(to_rad(ray_angle)));
 	Vec2f P;
 
-	// constant throughout the loop, compute here once.
-	double pheight_t_distplane = static_cast<double>(m_player->height) * m_player->dist_from_proj_plane;
-
 	for(int y = wall_top; y >= 0; y--){
 		int row_diff = m_proj_plane_center - y;
 
-		straight_dist_to_P = pheight_t_distplane / static_cast<double>(row_diff);
+		straight_dist_to_P = m_constants.pheight_times_distplane / static_cast<double>(row_diff);
 		real_dist_to_P = straight_dist_to_P / cosine_beta;
 
 		P = m_player->position + (ray_dir * real_dist_to_P);
@@ -303,7 +305,8 @@ void rc::Core::draw_celing_slice(double ray_angle, int screen_x, int wall_top){
 				assert(texture_x >= 0 && texture_x < ceiling_texture->w &&
 					   texture_y >= 0 && texture_y < ceiling_texture->h);
 
-				uint32_t pixel_color = ((uint32_t *)ceiling_texture->pixels)[texture_y * ceiling_texture->w + texture_x];
+				uint32_t * pixels = reinterpret_cast<uint32_t *>(ceiling_texture->pixels);
+				uint32_t pixel_color = pixels[texture_y * ceiling_texture->w + texture_x];
 				m_fbuffer.set_pixel(screen_x, y, pixel_color);
 			}
 		}
@@ -311,7 +314,7 @@ void rc::Core::draw_celing_slice(double ray_angle, int screen_x, int wall_top){
 }
 
 
-rc::Vec2i rc::Core::sprite_world_2_screen(const RC_Sprite& sprite, int columns_per_angle){
+rc::Vec2i rc::Core::sprite_world_2_screen(const RC_Sprite& sprite){
 	Vec2f sprite_dir = sprite.position - m_player->position;
 
 	double sprite_angle = atan2(-sprite_dir.y, sprite_dir.x) * (180.0f / M_PI);
@@ -321,7 +324,7 @@ rc::Vec2i rc::Core::sprite_world_2_screen(const RC_Sprite& sprite, int columns_p
 
 	/* This is the angle between the sprite directio and the left most ray angle,
 	 * we need this angle to find the sprite's screen x center.*/
-	double q = (m_player->viewing_angle + (m_player->fov * 0.5f)) - sprite_angle;
+	double q = (m_player->viewing_angle + m_constants.half_fov) - sprite_angle;
 
 	if(first_quadrant(m_player->viewing_angle) && fourth_quadrant(sprite_angle))
 		q += 360.0;
@@ -329,7 +332,7 @@ rc::Vec2i rc::Core::sprite_world_2_screen(const RC_Sprite& sprite, int columns_p
 	if(fourth_quadrant(m_player->viewing_angle) && first_quadrant(sprite_angle))
 		q -= 360.0;
 
-	return Vec2i(static_cast<int>(q * columns_per_angle), m_proj_plane_center);
+	return Vec2i(static_cast<int>(q * m_constants.columns_per_angle), m_proj_plane_center);
 }
 
 SDL_Rect rc::Core::sprite_screen_dimensions(int index, int screen_x){
@@ -348,9 +351,7 @@ SDL_Rect rc::Core::sprite_screen_dimensions(int index, int screen_x){
 void rc::Core::render_sprites(SDL_Renderer * renderer){
 	const auto& sprite = m_map->sprites[0];
 
-	int columns_per_angle = m_proj_plane_w / m_player->fov; //TODO: constant
-
-	auto screen_coords = sprite_world_2_screen(sprite, columns_per_angle);
+	auto screen_coords = sprite_world_2_screen(sprite);
 	auto sprite_dim = sprite_screen_dimensions(0, screen_coords.x);
 
 	int start_x = sprite_dim.x;
@@ -358,7 +359,7 @@ void rc::Core::render_sprites(SDL_Renderer * renderer){
 	int sprite_w = sprite_dim.w;
 	int sprite_h = sprite_dim.h;
 
-	const double screen_2_texture = ((double)m_map->cell_size / (double)sprite_w);
+	auto screen_2_texture = static_cast<double>(m_map->cell_size) / static_cast<double>(sprite_w);
 	memset(sprite_pixels, 0, sizeof(uint32_t) * (PROJ_PLANE_W * PROJ_PLANE_H));
 
 	for(int x = 0; x < sprite_w; x++){
@@ -384,7 +385,7 @@ void rc::Core::render_sprites(SDL_Renderer * renderer){
 
 const uint32_t * rc::Core::render(uint32_t flags){ 
 	// move the starting ray_angle direction to the leftmost part of the arc
-	double ray_angle = m_player->viewing_angle + (m_player->fov * 0.5);
+	double ray_angle = m_player->viewing_angle + (m_constants.half_fov);
 
 	m_fbuffer.clear();
 	std::fill(m_hits.begin(), m_hits.end(), Vec2f(0, 0));
@@ -392,9 +393,6 @@ const uint32_t * rc::Core::render(uint32_t flags){
 
 	Vec2i map_coords_h, map_coords_v;
 	Vec2f h_hit, v_hit;
-
-	// this is constant, so take it out of the loop
-	double cell_size_times_dist = static_cast<double>(m_map->cell_size) * m_player->dist_from_proj_plane;
 
 	/*Trace a ray for every colum*/
 	for(int x = 0; x < m_proj_plane_w; x++){
@@ -407,12 +405,12 @@ const uint32_t * rc::Core::render(uint32_t flags){
 
 		m_hits[x] = h_dist < v_dist ? h_hit: v_hit;
 
-		int texture_x = h_dist < v_dist ? (int)h_hit.x % 64 : (int)v_hit.y % 64;
+		int texture_x = h_dist < v_dist ? static_cast<int>(h_hit.x) % 64 : static_cast<int>(v_hit.y) % 64;
 		
 		auto& map_coords = h_dist < v_dist ? map_coords_h : map_coords_v;
 
 		double dist_to_wall = std::min(h_dist, v_dist);
-		int slice_height = static_cast<int>(cell_size_times_dist / dist_to_wall);
+		int slice_height = static_cast<int>(m_constants.cell_size_times_dist / dist_to_wall);
 
         int wall_bot = (slice_height * 0.5f) + m_proj_plane_center;
 	    int wall_top = m_proj_plane_center - (slice_height * 0.5f);       

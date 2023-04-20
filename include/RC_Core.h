@@ -41,7 +41,7 @@ namespace rc{
 
 			SDL_Rect sprite_screen_dimensions(int index, int screen_x);
 
-			Vec2i sprite_world_2_screen(const RC_Sprite& sprite, int columns_per_angle);
+			Vec2i sprite_world_2_screen(const RC_Sprite& sprite);
 
 			double perpendicular_distance(double viewing_angle, const Vec2f& p, const Vec2f& hit);
 
@@ -61,6 +61,16 @@ namespace rc{
 			double m_angle_step;
 			std::vector<Vec2f> m_hits;
 			double * m_sprite_distance;
+
+			/*These are values that are used repeatedly throughout Core for other calculations.
+			 *However they can be known at start up, so they are computed once and kept in this
+			 struct for access.*/
+			struct{
+				double half_fov;
+				int columns_per_angle;  // constant value used in sprite_world_2_screen conversion.
+				double cell_size_times_dist; // constant value used to calculate a wall slice height.
+				double pheight_times_distplane;  /* Used to figure out the straight distance to a point P at the ceiling or floor.*/
+			}m_constants;
 
 			struct Frame_buffer{
 				Frame_buffer() {};
