@@ -19,6 +19,8 @@ namespace rc{
 		WOLF_WALL_TEXT,
 		CEILING_TEXT,
 		BARREL_SPRITE,
+		ENEMY_SPRITE,
+		DOOM_SPRITE,
 
 		TEXTURES_NUM,
 	};
@@ -75,4 +77,5 @@ namespace rc{
 	SDL_Texture * load_texture(Engine * r2d, const char * filename);
 	SDL_Texture * load_texture(Engine * r2d, const char * filename, uint32_t colorkey);
 	SDL_Surface * load_surface_RGBA(SDL_Renderer * renderer, const std::string& filename);
+	SDL_Surface * load_surface_RGBA(SDL_Renderer * renderer, const std::string& filename, uint32_t colorkey);
 }

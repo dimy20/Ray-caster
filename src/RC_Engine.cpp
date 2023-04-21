@@ -18,7 +18,6 @@ uint32_t temp_map[8 * 8] = {
 #define TARGET_FPS 60
 static const double target_time_per_frame = 1.0 / TARGET_FPS;
 SDL_Texture * sprite_texture;
-extern uint32_t sprite_pixels[PROJ_PLANE_W * PROJ_PLANE_H];
 
 rc::Engine::Engine(int w, int h) : Core(PROJ_PLANE_W, PROJ_PLANE_H, 60.0){
 	init(w, h);
@@ -40,10 +39,13 @@ void rc::Engine::load_textures(){
 	m_resources->add_surface(SPACE_WALL_TEXT, load_surface_RGBA(m_renderer, "./assets/space_wall.png"));
 	m_resources->add_surface(WOLF_WALL_TEXT, load_surface_RGBA(m_renderer, "./assets/wall.png"));
 	m_resources->add_surface(CEILING_TEXT, m_resources->get_surface(WOLF_WALL_TEXT));
-	m_resources->add_surface(BARREL_SPRITE, load_surface_RGBA(m_renderer, "./assets/barrel.png"));
+	m_resources->add_surface(BARREL_SPRITE, load_surface_RGBA(m_renderer, "./assets/barrel.png", 0x980088ff));
+	m_resources->add_surface(ENEMY_SPRITE, load_surface_RGBA(m_renderer, "./assets/enemy.png"));
+	m_resources->add_surface(DOOM_SPRITE, load_surface_RGBA(m_renderer, "./assets/doom_guy.png", 0xa76b6bff));
 }
 
 void rc::Engine::init(int w, int h){
+
 	screen_w = w;
 	screen_h = h;
 
@@ -221,6 +223,10 @@ void rc::unpack_color(uint32_t color, uint8_t& r, uint8_t& g, uint8_t& b, uint8_
 
 void rc::Engine::update(){
 	m_player->update(this);
+
+	for(auto& sprite : Core::m_sprites){
+		sprite.update();
+	}
 }
 
 void rc::Engine::draw(){
@@ -265,11 +271,13 @@ void rc::Engine::draw(){
 	//	}
 	//}
 
-	RC_DIE(SDL_RenderSetViewport(m_renderer, &m_viewports["scene"]) < 0, SDL_GetError());
-	render_sprites(m_renderer);
-	RC_DIE(SDL_UpdateTexture(sprite_texture, NULL, sprite_pixels, 4 * PROJ_PLANE_W) < 0,
-			SDL_GetError());
-	RC_DIE(SDL_RenderCopy(m_renderer, sprite_texture, NULL, NULL) < 0, SDL_GetError());
+	//render_sprites(m_renderer);
+	//for(const auto& sprite : Core::get_sprites()){
+	//	RC_DIE(SDL_RenderSetViewport(m_renderer, &m_viewports["scene"]) < 0, SDL_GetError());
+	//	RC_DIE(SDL_UpdateTexture(sprite_texture, NULL, sprite.pixels, 4 * PROJ_PLANE_W) < 0, SDL_GetError());
+	//	RC_DIE(SDL_RenderCopy(m_renderer, sprite_texture, NULL, NULL) < 0, SDL_GetError());
+	//}
+
 }
 
 void rc::Engine::set_draw_color(uint32_t color){
@@ -284,6 +292,19 @@ SDL_Surface * rc::load_surface_RGBA(SDL_Renderer * renderer, const std::string& 
 
 	RC_DIE(!(surface = IMG_Load(filename.c_str())), IMG_GetError());
 	RC_DIE(!(s = SDL_ConvertSurfaceFormat(surface, SDL_PIXELFORMAT_RGBA8888, 0)), IMG_GetError());
+
+	SDL_FreeSurface(surface);
+
+	return s;
+}
+
+SDL_Surface * rc::load_surface_RGBA(SDL_Renderer * renderer, const std::string& filename, uint32_t colorkey){
+	assert(renderer != NULL);
+	SDL_Surface * surface, * s;
+
+	RC_DIE(!(surface = IMG_Load(filename.c_str())), IMG_GetError());
+	RC_DIE(!(s = SDL_ConvertSurfaceFormat(surface, SDL_PIXELFORMAT_RGBA8888, 0)), IMG_GetError());
+	RC_DIE((SDL_SetColorKey(s, SDL_TRUE, colorkey) < 0), SDL_GetError());
 
 	SDL_FreeSurface(surface);
 

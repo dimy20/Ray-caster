@@ -10,6 +10,7 @@
 #include "player.h"
 #include "utils.h"
 #include "Resources.h"
+#include "Sprite.h"
 
 
 namespace rc{
@@ -21,11 +22,15 @@ namespace rc{
 	struct Resources;
 
 	struct Core{
+		friend Sprite;
+
 		Core(size_t proj_plane_w, size_t proj_plane_h, double fov);
 		~Core();
-		void render_sprites(SDL_Renderer * renderer);
+		void render_sprites();
 		const uint32_t * render(uint32_t flags);
 		constexpr const std::vector<Vec2f>& hits() const { return m_hits; };
+		constexpr const std::vector<Sprite>& get_sprites() const { return m_sprites; };
+
 
 		private:
 			double find_h_intercept(double ray_angle, Vec2f& h_hit, Vec2i& map_coords);
@@ -39,9 +44,9 @@ namespace rc{
 
 			void draw_celing_slice(double ray_angle, int screen_x, int wall_top);
 
-			SDL_Rect sprite_screen_dimensions(int index, int screen_x);
+			SDL_Rect sprite_screen_dimensions(int screen_x, double dist_to_sprite);
 
-			Vec2i sprite_world_2_screen(const RC_Sprite& sprite);
+			Vec2i sprite_world_2_screen(const Sprite& sprite);
 
 			double perpendicular_distance(double viewing_angle, const Vec2f& p, const Vec2f& hit);
 
@@ -53,6 +58,7 @@ namespace rc{
 			rc::Resources * m_resources;
 			std::unique_ptr<Player> m_player;
 			std::unique_ptr<Map> m_map;
+			std::vector<Sprite> m_sprites;
 
 		private:
 			int m_proj_plane_w;
@@ -60,7 +66,7 @@ namespace rc{
 			int m_proj_plane_center;
 			double m_angle_step;
 			std::vector<Vec2f> m_hits;
-			double * m_sprite_distance;
+			std::vector<double> m_wall_dists;
 
 			/*These are values that are used repeatedly throughout Core for other calculations.
 			 *However they can be known at start up, so they are computed once and kept in this
@@ -76,12 +82,17 @@ namespace rc{
 				Frame_buffer() {};
 				Frame_buffer(int w, int h) : w(w), h(h) { pixels.resize(w * h, 0); };
 				inline void clear() { std::fill(pixels.begin(), pixels.end(), 0); };
-				inline void set_pixel(int x, int y, uint32_t color) { if(y < h && x < w) pixels[y * w + x] = color; };
-
+				inline void set_pixel(int x, int y, uint32_t color) { 
+					if(y < h && x < w && x >= 0 && y >= 0){
+						pixels[y * w + x] = color; 
+					}
+				};
 				public:
 					std::vector<uint32_t> pixels;
 					int w;
 					int h;
 			}m_fbuffer;
+
+
 	};
 }

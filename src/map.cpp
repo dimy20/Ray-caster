@@ -17,9 +17,6 @@ rc::Map::Map(const uint32_t * _values, int map_w, int map_h){
 	h = map_h;
 	cell_size = CELL_SIZE;
 	colors = _colors;
-
-	memset(sprites, 0, sizeof(RC_Sprite) * MAX_SPRITES);
-	sprites_len = 0;
 }
 
 void rc::Map::draw(rc::Engine * engine, size_t window_w, size_t window_h){
@@ -74,13 +71,4 @@ void rc::Map::draw(rc::Engine * engine, size_t window_w, size_t window_h){
 	//	SDL_Rect r = {screen.x, screen.y, 5, 5};
 	//	SDL_RenderFillRect(engine->renderer(), &r);
 	//}
-}
-
-void rc::Map::set_sprite(int x, int y, int texture_id){
-	if(sprites_len < MAX_SPRITES){
-		RC_Sprite * sprite = &sprites[sprites_len++];
-		sprite->position.x = x;
-		sprite->position.y = y;
-		sprite->texture_id = texture_id;
-	}
 }

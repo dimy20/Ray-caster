@@ -49,5 +49,8 @@ void rc::Player::update(const rc::Engine * engine){
 	if(pressed_d || pressed_a){
 		double _speed = rotation_speed * delta_time;
 		viewing_angle += pressed_d ? -_speed : _speed;
+
+		if(viewing_angle > 360.0) viewing_angle -= 360.0;
+		if(viewing_angle < 0.0) viewing_angle += 360.0;
 	}
 }

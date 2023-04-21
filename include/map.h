@@ -13,7 +13,6 @@
 #define FLOOR_CEIL_BIT 0x2
 #define MAX_SPRITES 128
 
-
 /* This macros can be used to set the cell data on the map.
  *
  *  WALL CELL:
@@ -29,11 +28,7 @@
 	the remaining 5 bits of the first byte are left unused and reserved for further usage.*/
 #define FLCL(s, f, c) (s << 24 | f << 16 | c << 8 | FLOOR_CEIL_BIT) & 0xffffff02
 
-typedef struct{
-	rc::Vec2f position;
-	int texture_id;
-	uint32_t screen_pixels;
-}RC_Sprite;
+
 
 namespace rc{
 	struct Engine;
@@ -43,15 +38,12 @@ namespace rc{
 		Map(const uint32_t * values, int w, int h);
 		void draw(rc::Engine * engine, size_t window_w, size_t window_h);
 		inline uint32_t at(int x, int y) const { return values[y * w + x]; };
-		void set_sprite(int x, int y, int texture_id);
 
 		public:
 			int w;
 			int h;
 			size_t cell_size;
 			std::vector<uint32_t> values;
-			RC_Sprite sprites[MAX_SPRITES];
-			size_t sprites_len = 0;
 			const uint32_t * colors;
 	};
 };

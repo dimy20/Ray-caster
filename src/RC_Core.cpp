@@ -1,15 +1,13 @@
 #include "RC_Core.h"
 #include <iostream>
+#include <algorithm>
 
 #define COLOR_KEY 0x980088ff
-#define PROJ_PLANE_W 800
-#define PROJ_PLANE_H 600
+//#define PROJ_PLANE_W 800 #define PROJ_PLANE_H 600
 
 static bool visited_cell[MAP_MAX_SIZE][MAP_MAX_SIZE];
 extern SDL_Texture * sprite_texture;
 extern uint32_t temp_map[8 * 8];
-
-uint32_t sprite_pixels[PROJ_PLANE_W * PROJ_PLANE_H];
 
 double rc::Core::perpendicular_distance(double viewing_angle, const Vec2f& p, const Vec2f& hit){
 	double dx = hit.x - p.x;
@@ -23,6 +21,7 @@ rc::Core::Core(size_t proj_plane_w, size_t proj_plane_h, double fov){
 	m_proj_plane_center = proj_plane_h / 2;
 
 	m_hits.resize(m_proj_plane_w, Vec2f(0, 0));
+	m_wall_dists.resize(m_proj_plane_w, 0.0);
 
 	m_angle_step = fov / static_cast<double>(m_proj_plane_w);
 	m_fbuffer = Frame_buffer(proj_plane_w, proj_plane_h);
@@ -30,7 +29,9 @@ rc::Core::Core(size_t proj_plane_w, size_t proj_plane_h, double fov){
 
 	m_player = std::make_unique<Player>(proj_plane_w);
 	m_map = std::make_unique<Map>(temp_map, 8, 8);
-	m_map->set_sprite(100, 100, 4); // BARREL_SPRITE
+
+	m_sprites.emplace_back(Vec2f(100, 100), 4, this);
+	m_sprites.emplace_back(Vec2f(150, 200), 6, this);
 
 	// compute some constants.
 	m_constants.half_fov = m_player->fov * 0.5f;
@@ -313,11 +314,36 @@ void rc::Core::draw_celing_slice(double ray_angle, int screen_x, int wall_top){
 	}
 }
 
-
-rc::Vec2i rc::Core::sprite_world_2_screen(const RC_Sprite& sprite){
+/* 
+ * For walls, floor and ceiling the rendering process goes the following way:
+ * for each screen column find the corresponding wall/floor/ceiling slice and paint it to the
+ * frame buffer, so the process goes from screen_space -> world_space.
+ *
+ * However for sprites will follow the other way around: world space -> screen space
+ *
+ * For each sprite in the world we will need to find it's corresponding screen coordinates.
+ *
+ * Given that our world has constraints, such as everything being 64 units tall and wide and our
+ * player being 32 units tall, we already know the screen_y for every sprite:
+ * screen_y = proj_plane_h / 2, so all the work is focused on finding screen_x.
+ *
+ * world to screen:
+ * We can compute the sprite direction relative to the player with dir = sprite_pos - player_pos.
+ * From this direction we can of course, find the angle with respect to x (world x, not screen_x)
+ * of the sprite.
+ *
+ * lets call q = left_most_angle - sprite_angle.
+ *
+ * q is just the offset from the left_most_angle( of the fov ) where the sprite is.
+ *
+ * if we know how many screen columns one angle is equivalent to, that is proj_plane_w / fov,
+ * then screen_columns_for_q = q * (proj_plane_w / fov) = screen_x;
+ *
+ * */
+rc::Vec2i rc::Core::sprite_world_2_screen(const rc::Sprite& sprite){
 	Vec2f sprite_dir = sprite.position - m_player->position;
 
-	double sprite_angle = atan2(-sprite_dir.y, sprite_dir.x) * (180.0f / M_PI);
+	double sprite_angle = to_deg(atan2(-sprite_dir.y, sprite_dir.x));
 
 	if(sprite_angle > 360.0) sprite_angle -= 360.0;
 	if(sprite_angle < 0.0) sprite_angle += 360.0;
@@ -335,51 +361,29 @@ rc::Vec2i rc::Core::sprite_world_2_screen(const RC_Sprite& sprite){
 	return Vec2i(static_cast<int>(q * m_constants.columns_per_angle), m_proj_plane_center);
 }
 
-SDL_Rect rc::Core::sprite_screen_dimensions(int index, int screen_x){
-	const auto& sprite = m_map->sprites[index];
-
-	Vec2f sprite_dir = sprite.position - m_player->position;
-	double dist_to_sprite = sprite_dir.length();
-
+SDL_Rect rc::Core::sprite_screen_dimensions(int screen_x, double dist_to_sprite){
 	double A = static_cast<double>(m_map->cell_size) / dist_to_sprite;
 	int sprite_h = static_cast<int>(m_player->dist_from_proj_plane * A);
 
-	return {screen_x - (sprite_h >> 1), m_proj_plane_center - (sprite_h >> 1), sprite_h, sprite_h};
+	return {screen_x - (sprite_h >> 1), 
+		    m_proj_plane_center - (sprite_h >> 1), 
+			sprite_h, sprite_h};
 }
 
+bool sprite_cmp(const rc::Sprite& a, const rc::Sprite& b){
+	return b.last_dist_to_player < a.last_dist_to_player;
+}
 
-void rc::Core::render_sprites(SDL_Renderer * renderer){
-	const auto& sprite = m_map->sprites[0];
+void rc::Core::render_sprites(){
+	std::sort(m_sprites.begin(), m_sprites.end(), sprite_cmp);
+	for(auto& sprite : m_sprites){
+		auto screen_coords = sprite_world_2_screen(sprite);
 
-	auto screen_coords = sprite_world_2_screen(sprite);
-	auto sprite_dim = sprite_screen_dimensions(0, screen_coords.x);
+		Vec2f sprite_dir = sprite.position - m_player->position;
+		double dist_to_sprite = sprite_dir.length();
 
-	int start_x = sprite_dim.x;
-	int start_y = sprite_dim.y;
-	int sprite_w = sprite_dim.w;
-	int sprite_h = sprite_dim.h;
-
-	auto screen_2_texture = static_cast<double>(m_map->cell_size) / static_cast<double>(sprite_w);
-	memset(sprite_pixels, 0, sizeof(uint32_t) * (PROJ_PLANE_W * PROJ_PLANE_H));
-
-	for(int x = 0; x < sprite_w; x++){
-		int screen_x = x + start_x;
-
-		if((column_in_bounds(screen_x))){
-			for(int y = 0; y < sprite_h; y++){
-				int screen_y = start_y + y;
-				if(!row_in_bounds(screen_y)) continue;
-				// TODO: may change to x << 6
-				int texture_x = x * screen_2_texture;
-				int texture_y = y * screen_2_texture;
-
-				SDL_Surface * surf = m_resources->get_surface(sprite.texture_id);
-				uint32_t pixel_color = ((uint32_t *)surf->pixels)[texture_y * surf->w + texture_x];
-				if(pixel_color != COLOR_KEY){
-					sprite_pixels[screen_y * PROJ_PLANE_W + screen_x] = pixel_color;
-				}
-			}
-		}
+		auto sprite_dim = sprite_screen_dimensions(screen_coords.x, dist_to_sprite);
+		sprite.draw(sprite_dim, dist_to_sprite);
 	}
 }
 
@@ -388,7 +392,10 @@ const uint32_t * rc::Core::render(uint32_t flags){
 	double ray_angle = m_player->viewing_angle + (m_constants.half_fov);
 
 	m_fbuffer.clear();
+
 	std::fill(m_hits.begin(), m_hits.end(), Vec2f(0, 0));
+	std::fill(m_wall_dists.begin(), m_wall_dists.end(), 0.0);
+
 	memset(visited_cell, 0, sizeof(bool) * MAP_MAX_SIZE * MAP_MAX_SIZE);
 
 	Vec2i map_coords_h, map_coords_v;
@@ -396,14 +403,17 @@ const uint32_t * rc::Core::render(uint32_t flags){
 
 	/*Trace a ray for every colum*/
 	for(int x = 0; x < m_proj_plane_w; x++){
-		if(ray_angle < 0) ray_angle += 360.0f;
+		if(ray_angle > 360.0) ray_angle -= 360.0;
+		if(ray_angle < 0.0) ray_angle += 360.0;
+
+		assert(ray_angle >= 0 && ray_angle <= 360.0);
 
 		double h_dist = find_h_intercept(ray_angle, h_hit, map_coords_h);
 		double v_dist = find_v_intercept(ray_angle, v_hit, map_coords_v);
 
-		assert(h_dist >= 0 && v_dist >= 0);
-
 		m_hits[x] = h_dist < v_dist ? h_hit: v_hit;
+		// store dists to wall for depth testing againts sprite columns
+		m_wall_dists[x] = std::min(h_dist, v_dist);
 
 		int texture_x = h_dist < v_dist ? static_cast<int>(h_hit.x) % 64 : static_cast<int>(v_hit.y) % 64;
 		
@@ -412,14 +422,7 @@ const uint32_t * rc::Core::render(uint32_t flags){
 		double dist_to_wall = std::min(h_dist, v_dist);
 		int slice_height = static_cast<int>(m_constants.cell_size_times_dist / dist_to_wall);
 
-        int wall_bot = (slice_height * 0.5f) + m_proj_plane_center;
-	    int wall_top = m_proj_plane_center - (slice_height * 0.5f);       
-
-		assert(map_coords.x >= 0     &&
-			   map_coords.x < m_map->w &&
-			   map_coords.y >= 0     &&
-			   map_coords.y < m_map->h);
-
+		assert(map_coords.x >= 0 && map_coords.x < m_map->w && map_coords.y >= 0 && map_coords.y < m_map->h);
 
 		uint32_t cell_data = m_map->at(map_coords.x, map_coords.y);
 		assert(cell_data & WALL_BIT);
@@ -434,6 +437,13 @@ const uint32_t * rc::Core::render(uint32_t flags){
 			}
 		}
 
+        int wall_bot = (slice_height * 0.5f) + m_proj_plane_center;
+	    int wall_top = m_proj_plane_center - (slice_height * 0.5f);
+
+		// clip
+		wall_bot = std::min(m_proj_plane_h - 1, wall_bot);
+		wall_top = std::max(0, wall_top);
+
 		if(flags & DRAW_RAW_WALLS){
 			draw_wall_slice(wall_top, wall_bot, x, color);
 		}
@@ -442,8 +452,9 @@ const uint32_t * rc::Core::render(uint32_t flags){
 		draw_celing_slice(ray_angle, x, wall_top);
 
 		ray_angle -= m_angle_step;
-		if(ray_angle >= 360.0f) ray_angle -= 360.0f;
 	}
+
+	render_sprites();
 
 	return &m_fbuffer.pixels[0];
 }
