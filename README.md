@@ -18,7 +18,7 @@ The common Fish-eye distortion issue is corrected using perpendicular distance p
 - 800x600 projection plane upscaled to 1280x768
 
 
-- This project implemented the 'core' of a raycasting engine.
+This project implemented the 'core' of a raycasting engine.
 
 Additional features could be:
   - Doors and interactive elements
